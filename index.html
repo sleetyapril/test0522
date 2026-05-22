@@ -1,0 +1,2056 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>KOSPI Space Defender — Market Invader Alert</title>
+<meta name="description" content="실시간 코스피200 선물 움직임을 레트로 픽셀 슈팅 게임 난이도로 변환해, 시장 급락을 직관적으로 알려주는 모바일 warning game." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg-main:#050816;
+    --bg-panel:#0B1020;
+    --bg-card:#111827;
+    --bg-card-2:#0e1626;
+    --text-main:#E5E7EB;
+    --text-muted:#9CA3AF;
+    --text-dim:#6B7280;
+    --neon-green:#22C55E;
+    --neon-green-soft:rgba(34,197,94,.16);
+    --neon-blue:#60A5FA;
+    --neon-blue-soft:rgba(96,165,250,.18);
+    --warning-red:#EF4444;
+    --warning-red-soft:rgba(239,68,68,.16);
+    --pixel-yellow:#FACC15;
+    --border-soft:rgba(255,255,255,0.10);
+    --border-mid:rgba(255,255,255,0.16);
+    --shadow-card:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px rgba(0,0,0,.7);
+
+    --font-sans: "IBM Plex Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-pixel: "Press Start 2P", "JetBrains Mono", monospace;
+
+    --maxw: 1180px;
+    --pad: clamp(20px, 4vw, 40px);
+    --radius: 14px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg-main);
+    color:var(--text-main);
+    font-family:var(--font-sans);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    padding-bottom: 88px; /* room for mobile fixed CTA */
+  }
+  @media (min-width:768px){ body{padding-bottom:0} }
+
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:0;background:transparent;color:inherit}
+
+  /* ------- Backdrop: pixel grid + stars ------- */
+  .bg-fx{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(96,165,250,.10), transparent 60%),
+      radial-gradient(900px 600px at 10% 20%, rgba(34,197,94,.07), transparent 60%),
+      radial-gradient(1000px 800px at 50% 110%, rgba(239,68,68,.05), transparent 60%),
+      linear-gradient(180deg, #04060f 0%, #050816 50%, #03050d 100%);
+  }
+  .bg-fx::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    mask-image: radial-gradient(ellipse at 50% 30%, #000 30%, transparent 80%);
+  }
+  .bg-fx::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      radial-gradient(1px 1px at 17% 23%, #cfd8ff 99%, transparent 100%),
+      radial-gradient(1px 1px at 31% 71%, #b9ffe0 99%, transparent 100%),
+      radial-gradient(1px 1px at 62% 41%, #ffffff 99%, transparent 100%),
+      radial-gradient(1px 1px at 78% 18%, #9ec8ff 99%, transparent 100%),
+      radial-gradient(1px 1px at 88% 64%, #ffffff 99%, transparent 100%),
+      radial-gradient(1px 1px at 44% 88%, #c8eaff 99%, transparent 100%),
+      radial-gradient(1px 1px at 8% 56%, #ffffff 99%, transparent 100%),
+      radial-gradient(1px 1px at 53% 12%, #d6e2ff 99%, transparent 100%);
+    opacity:.55;
+    animation: twinkle 6s ease-in-out infinite;
+  }
+  @keyframes twinkle{0%,100%{opacity:.45}50%{opacity:.75}}
+
+  /* ------- Layout ------- */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad)}
+  section{padding:84px 0;position:relative}
+  @media (max-width:768px){ section{padding:64px 0} }
+
+  /* ------- Header / Nav ------- */
+  header.site{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:saturate(140%) blur(10px);
+    -webkit-backdrop-filter:saturate(140%) blur(10px);
+    background:rgba(5,8,22,.65);
+    border-bottom:1px solid var(--border-soft);
+  }
+  .nav{
+    display:flex;align-items:center;justify-content:space-between;
+    height:60px;
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{
+    width:28px;height:28px;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:1px;
+    image-rendering:pixelated;
+  }
+  .brand-mark i{background:transparent}
+  .brand-mark i.on{background:var(--neon-green);box-shadow:0 0 6px rgba(34,197,94,.7)}
+  .brand-mark i.b{background:var(--neon-blue);box-shadow:0 0 6px rgba(96,165,250,.7)}
+  .brand-name{font-family:var(--font-pixel);font-size:11px;letter-spacing:.04em;color:#fff}
+  .brand-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px}
+  .nav-links{display:none;gap:22px;font-size:14px;color:var(--text-muted)}
+  .nav-links a:hover{color:#fff}
+  .nav-cta{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:9px 14px;border-radius:8px;
+    border:1px solid rgba(34,197,94,.45);
+    background:linear-gradient(180deg, rgba(34,197,94,.16), rgba(34,197,94,.05));
+    color:#bbf7d0;font-size:13px;font-weight:600;
+    transition:all .2s ease;
+  }
+  .nav-cta:hover{box-shadow:0 0 0 1px rgba(34,197,94,.6), 0 0 22px rgba(34,197,94,.35);color:#fff}
+  @media (min-width:768px){ .nav-links{display:flex} }
+
+  /* ------- Section header ------- */
+  .eyebrow{
+    font-family:var(--font-pixel);font-size:10px;letter-spacing:.15em;
+    color:var(--neon-green);text-transform:uppercase;
+    display:inline-flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{
+    content:"";width:18px;height:2px;background:var(--neon-green);box-shadow:0 0 8px var(--neon-green)
+  }
+  h1,h2,h3,h4{margin:0;line-height:1.15;letter-spacing:-.01em}
+  h1{font-size:clamp(34px, 6vw, 64px);font-weight:700}
+  h2{font-size:clamp(28px, 4vw, 44px);font-weight:700}
+  h3{font-size:18px;font-weight:600}
+  p{margin:0;color:var(--text-muted);font-size:15px;line-height:1.65}
+  .section-head{max-width:780px;margin:0 0 44px}
+  .section-head h2{margin:14px 0 14px}
+  .section-head p{font-size:16px}
+
+  /* ------- Buttons ------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    height:50px;padding:0 22px;border-radius:10px;
+    font-weight:600;font-size:15px;letter-spacing:-.01em;
+    transition:transform .15s ease, box-shadow .25s ease, border-color .2s ease, background .2s ease;
+    border:1px solid transparent;white-space:nowrap;
+  }
+  .btn-primary{
+    background:linear-gradient(180deg, #22C55E 0%, #16A34A 100%);
+    color:#031d10;
+    box-shadow: 0 0 0 1px rgba(34,197,94,.5), 0 10px 30px -10px rgba(34,197,94,.55);
+  }
+  .btn-primary:hover{
+    box-shadow: 0 0 0 1px rgba(34,197,94,.9), 0 0 32px rgba(34,197,94,.55), 0 10px 30px -10px rgba(34,197,94,.65);
+    transform:translateY(-1px);
+  }
+  .btn-ghost{
+    background:rgba(255,255,255,.03);
+    color:var(--text-main);
+    border-color:var(--border-mid);
+  }
+  .btn-ghost:hover{
+    border-color:rgba(96,165,250,.6);
+    box-shadow:0 0 22px rgba(96,165,250,.25);
+    color:#fff;
+  }
+  .btn-warn{
+    background:linear-gradient(180deg, rgba(239,68,68,.18), rgba(239,68,68,.06));
+    color:#fecaca;
+    border-color:rgba(239,68,68,.45);
+  }
+  .btn-warn:hover{box-shadow:0 0 24px rgba(239,68,68,.4);color:#fff}
+
+  /* ------- Hero ------- */
+  .hero{padding:64px 0 60px}
+  .hero-grid{
+    display:grid;grid-template-columns:1fr;gap:48px;align-items:center;
+  }
+  @media (min-width:980px){
+    .hero-grid{grid-template-columns:1.05fr .95fr;gap:64px}
+  }
+  .hero h1 span.accent{
+    background:linear-gradient(90deg, #fff 0%, #fff 40%, var(--warning-red) 90%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero h1 span.green{
+    color:var(--neon-green);text-shadow:0 0 22px rgba(34,197,94,.35)
+  }
+  .hero p.lede{font-size:17px;color:#cbd5e1;max-width:560px;margin:22px 0 0}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .hero-ticker{
+    margin-top:34px;border:1px solid var(--border-soft);border-radius:10px;
+    background:linear-gradient(180deg, rgba(11,16,32,.7), rgba(11,16,32,.35));
+    padding:12px 14px;
+    display:flex;align-items:center;gap:14px;
+    font-family:var(--font-mono);font-size:12px;color:var(--text-muted);
+    overflow:hidden;
+  }
+  .hero-ticker .dot{width:8px;height:8px;border-radius:50%;background:var(--neon-green);box-shadow:0 0 10px var(--neon-green);flex:none}
+  .hero-ticker .marquee{flex:1;overflow:hidden;position:relative;height:18px}
+  .hero-ticker .marquee-track{position:absolute;white-space:nowrap;display:flex;gap:34px;animation: marquee 28s linear infinite}
+  @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .ticker-up{color:var(--neon-green)} .ticker-dn{color:var(--warning-red)}
+
+  /* status pill */
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:999px;
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
+    border:1px solid var(--border-mid);background:rgba(255,255,255,.02);color:var(--text-muted)
+  }
+  .pill .blip{width:6px;height:6px;border-radius:50%;background:var(--neon-green);box-shadow:0 0 8px var(--neon-green);animation:blink 1.6s ease-in-out infinite}
+  .pill.alert{border-color:rgba(239,68,68,.6);color:#fecaca;background:rgba(239,68,68,.08)}
+  .pill.alert .blip{background:var(--warning-red);box-shadow:0 0 10px var(--warning-red)}
+  .pill.demo{border-color:rgba(96,165,250,.5);color:#bfdbfe;background:rgba(96,165,250,.08)}
+  .pill.demo .blip{background:var(--neon-blue);box-shadow:0 0 8px var(--neon-blue)}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ------- Phone mockup ------- */
+  .phone-wrap{display:flex;justify-content:center;position:relative}
+  .phone-glow{
+    position:absolute;inset:-40px;border-radius:60px;
+    background:radial-gradient(closest-side, rgba(34,197,94,.18), rgba(96,165,250,.10), transparent 70%);
+    filter:blur(20px);z-index:0;pointer-events:none;
+  }
+  .phone{
+    position:relative;z-index:1;
+    width:min(330px, 80vw);aspect-ratio: 320 / 660;
+    background:linear-gradient(180deg, #1a2236 0%, #0b1020 100%);
+    border-radius:42px;
+    padding:14px;
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.04) inset,
+      0 30px 80px -20px rgba(0,0,0,.7),
+      0 0 60px rgba(34,197,94,.08);
+  }
+  .phone-notch{
+    position:absolute;top:18px;left:50%;transform:translateX(-50%);
+    width:90px;height:22px;background:#000;border-radius:14px;z-index:3;
+  }
+  .phone-screen{
+    width:100%;height:100%;border-radius:30px;overflow:hidden;
+    background:var(--bg-main);
+    position:relative;
+    display:flex;flex-direction:column;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  /* Screen header (status + market) */
+  .scr-status{
+    height:30px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;
+    font-family:var(--font-mono);font-size:10px;color:var(--text-muted);
+    background:#000;
+  }
+  .scr-status .right{display:flex;gap:6px;align-items:center}
+  .scr-status .bars{display:inline-flex;gap:2px}
+  .scr-status .bars i{width:3px;background:#cbd5e1;border-radius:1px}
+  .scr-status .bars i:nth-child(1){height:5px}
+  .scr-status .bars i:nth-child(2){height:7px}
+  .scr-status .bars i:nth-child(3){height:9px}
+  .scr-status .batt{
+    width:22px;height:10px;border:1px solid #cbd5e1;border-radius:2px;position:relative
+  }
+  .scr-status .batt::after{content:"";position:absolute;left:1px;top:1px;bottom:1px;width:70%;background:var(--neon-green)}
+  .scr-status .batt::before{content:"";position:absolute;right:-3px;top:2px;bottom:2px;width:2px;background:#cbd5e1;border-radius:0 1px 1px 0}
+
+  .scr-header{
+    padding:10px 14px 12px;border-bottom:1px solid var(--border-soft);
+    background:linear-gradient(180deg, rgba(96,165,250,.06), rgba(96,165,250,0));
+  }
+  .scr-header .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .scr-header .sym{font-family:var(--font-pixel);font-size:9px;color:#bfdbfe;letter-spacing:.06em}
+  .scr-header .price{
+    font-family:var(--font-mono);font-weight:700;font-size:20px;color:#fff;line-height:1;margin-top:4px;
+    font-variant-numeric:tabular-nums;
+  }
+  .scr-header .chg{
+    font-family:var(--font-mono);font-size:11px;font-weight:700;
+  }
+  .chg.up{color:var(--neon-green)} .chg.dn{color:var(--warning-red)} .chg.flat{color:var(--text-muted)}
+
+  .scr-spark{height:32px;margin-top:8px;position:relative}
+  .scr-spark svg{width:100%;height:100%;display:block}
+
+  /* Game stage */
+  .stage{
+    flex:1;position:relative;overflow:hidden;
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(96,165,250,.10), transparent 60%),
+      linear-gradient(180deg, #04060f, #02030a);
+  }
+  .stage::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:14px 14px;
+    mask-image: linear-gradient(180deg, #000 80%, transparent 100%);
+  }
+  .stage.alert::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(70% 60% at 50% 60%, rgba(239,68,68,.15), transparent 70%);
+    animation:redpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes redpulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+  /* Enemy row */
+  .enemy{
+    position:absolute;width:24px;height:24px;
+    display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(6,1fr);
+    image-rendering:pixelated;
+    will-change:transform;
+  }
+  .enemy i{background:transparent}
+  .enemy i.on{background:currentColor}
+  .enemy.green{color:#34d399; filter:drop-shadow(0 0 4px rgba(52,211,153,.65))}
+  .enemy.blue{color:#60a5fa; filter:drop-shadow(0 0 4px rgba(96,165,250,.6))}
+  .enemy.yellow{color:#facc15; filter:drop-shadow(0 0 4px rgba(250,204,21,.6))}
+  .enemy.red{color:#f87171; filter:drop-shadow(0 0 5px rgba(248,113,113,.7))}
+  .enemy.purple{color:#c084fc; filter:drop-shadow(0 0 4px rgba(192,132,252,.6))}
+
+  .bullet{
+    position:absolute;width:3px;height:8px;border-radius:1px;background:#facc15;
+    box-shadow:0 0 6px rgba(250,204,21,.9);
+  }
+  .ebullet{
+    position:absolute;width:3px;height:8px;border-radius:1px;background:#f87171;
+    box-shadow:0 0 8px rgba(248,113,113,.9);
+  }
+
+  .player{
+    position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
+    width:26px;height:18px;
+    display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(4,1fr);
+    color:#34d399;filter:drop-shadow(0 0 6px rgba(52,211,153,.7));
+  }
+  .player i{background:transparent}
+  .player i.on{background:currentColor}
+
+  /* HUD */
+  .hud{
+    position:absolute;left:10px;right:10px;top:10px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+    font-family:var(--font-mono);font-size:9px;color:#cbd5e1;
+    pointer-events:none;
+  }
+  .hud .hud-box{
+    background:rgba(0,0,0,.55);border:1px solid var(--border-soft);
+    padding:4px 6px;border-radius:4px;backdrop-filter:blur(2px);
+  }
+  .hud .hud-box b{color:#fff;font-weight:700}
+
+  .alert-banner{
+    position:absolute;left:0;right:0;top:38%;
+    text-align:center;font-family:var(--font-pixel);font-size:11px;color:#fff;
+    background:linear-gradient(90deg, rgba(239,68,68,0), rgba(239,68,68,.85), rgba(239,68,68,0));
+    padding:8px 0;letter-spacing:.08em;
+    text-shadow:0 0 8px rgba(255,255,255,.5), 0 0 16px rgba(239,68,68,.8);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .alert-banner.on{opacity:1;animation:bannerflash .8s ease-in-out infinite}
+  @keyframes bannerflash{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+
+  .check-banner{
+    position:absolute;left:10px;right:10px;bottom:120px;
+    text-align:center;font-family:var(--font-pixel);font-size:8px;color:#fef3c7;
+    border:1px dashed rgba(250,204,21,.6);border-radius:6px;
+    padding:6px 8px;background:rgba(250,204,21,.06);
+    letter-spacing:.06em;opacity:0;transition:opacity .3s ease;
+  }
+  .check-banner.on{opacity:1}
+
+  /* status footer in screen */
+  .scr-footer{
+    border-top:1px solid var(--border-soft);
+    padding:10px 12px;background:#04060f;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  }
+  .stat-cell{
+    border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;background:rgba(255,255,255,.02)
+  }
+  .stat-cell .lbl{font-family:var(--font-pixel);font-size:7px;color:var(--text-muted);letter-spacing:.06em}
+  .stat-cell .val{font-family:var(--font-mono);font-size:11px;font-weight:700;color:#fff;margin-top:3px}
+  .stat-cell.warn .val{color:var(--warning-red)}
+  .stat-cell.green .val{color:var(--neon-green)}
+  .stat-cell.blue .val{color:var(--neon-blue)}
+
+  /* meter bar */
+  .meter{height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:4px;overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--neon-green);transition:width .3s ease, background .3s ease}
+
+  /* ------- Cards / Grids ------- */
+  .grid{display:grid;gap:16px}
+  .grid-3{grid-template-columns:repeat(1,1fr)}
+  @media (min-width:768px){ .grid-3{grid-template-columns:repeat(3,1fr)} }
+  .grid-4{grid-template-columns:repeat(1,1fr)}
+  @media (min-width:640px){ .grid-4{grid-template-columns:repeat(2,1fr)} }
+  @media (min-width:980px){ .grid-4{grid-template-columns:repeat(4,1fr)} }
+
+  .card{
+    background:linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-2) 100%);
+    border:1px solid var(--border-soft);border-radius:var(--radius);
+    padding:24px;box-shadow:var(--shadow-card);
+    transition:transform .25s ease, border-color .2s ease, box-shadow .25s ease;
+    position:relative;
+  }
+  .card:hover{border-color:var(--border-mid)}
+
+  .card-num{
+    font-family:var(--font-pixel);font-size:10px;color:var(--neon-green);
+    letter-spacing:.08em;
+  }
+  .card h3{margin:14px 0 8px}
+  .card p{font-size:14px}
+
+  /* Solution: 4 step cards w arrow flow */
+  .flow{display:grid;gap:14px}
+  @media (min-width:980px){ .flow{grid-template-columns:repeat(4,1fr);align-items:stretch} }
+  .flow .card{padding:22px}
+  .flow .step{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:8px;
+    background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);
+    color:var(--neon-green);font-family:var(--font-pixel);font-size:11px;
+  }
+  .flow .card .pixel-icon{margin:14px 0 2px}
+
+  .pixel-icon{
+    width:36px;height:36px;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(6,1fr);
+  }
+  .pixel-icon i{background:transparent}
+  .pixel-icon i.on{background:currentColor}
+  .pixel-icon.g{color:var(--neon-green);filter:drop-shadow(0 0 6px rgba(34,197,94,.5))}
+  .pixel-icon.b{color:var(--neon-blue);filter:drop-shadow(0 0 6px rgba(96,165,250,.5))}
+  .pixel-icon.r{color:var(--warning-red);filter:drop-shadow(0 0 6px rgba(239,68,68,.5))}
+  .pixel-icon.y{color:var(--pixel-yellow);filter:drop-shadow(0 0 6px rgba(250,204,21,.5))}
+
+  /* ------- Demo scenes (4 storyboards) ------- */
+  .scenes{display:grid;gap:16px}
+  @media (min-width:780px){ .scenes{grid-template-columns:repeat(2,1fr)} }
+  @media (min-width:1100px){ .scenes{grid-template-columns:repeat(4,1fr)} }
+  .scene{
+    background:#04060f;border:1px solid var(--border-soft);border-radius:12px;
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .scene-screen{
+    aspect-ratio: 9 / 12;position:relative;overflow:hidden;
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(96,165,250,.08), transparent 60%),
+      linear-gradient(180deg, #04060f, #02030a);
+  }
+  .scene-screen::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:14px 14px;
+  }
+  .scene-tag{
+    position:absolute;top:8px;left:8px;font-family:var(--font-pixel);font-size:8px;
+    background:rgba(0,0,0,.6);border:1px solid var(--border-mid);padding:4px 6px;border-radius:4px;
+    color:#cbd5e1;letter-spacing:.08em;
+  }
+  .scene-chg{
+    position:absolute;top:8px;right:8px;font-family:var(--font-mono);font-weight:700;font-size:11px;
+    background:rgba(0,0,0,.55);border:1px solid var(--border-mid);padding:3px 7px;border-radius:4px;
+  }
+  .scene-body{padding:16px 18px 18px}
+  .scene-body h4{margin:0 0 6px;font-size:15px}
+  .scene-body p{font-size:13px;color:var(--text-muted)}
+
+  /* ------- Rules table ------- */
+  .rules{
+    border:1px solid var(--border-soft);border-radius:var(--radius);overflow:hidden;
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+  }
+  .rules-row{
+    display:grid;grid-template-columns:1.1fr 1.4fr 1.4fr;gap:0;
+    align-items:center;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .rules-row:last-child{border-bottom:0}
+  .rules-row.head{
+    background:rgba(255,255,255,.02);
+    font-family:var(--font-pixel);font-size:10px;letter-spacing:.06em;color:var(--text-muted);
+  }
+  .rules-row > div{padding:16px 18px;font-size:14px}
+  .rules-row.head > div{padding:14px 18px}
+  .rules-row .cond{font-family:var(--font-mono);font-weight:700;color:#fff;font-size:14px}
+  .rules-row .react{color:#cbd5e1}
+  .rules-row .feel{color:var(--text-muted)}
+  .rules-row.up .cond::before{content:"▲ ";color:var(--neon-green)}
+  .rules-row.flat .cond::before{content:"◆ ";color:var(--text-muted)}
+  .rules-row.dn1 .cond::before{content:"▼ ";color:#fbbf24}
+  .rules-row.dn2 .cond::before{content:"▼▼ ";color:#fb923c}
+  .rules-row.dn3 .cond::before{content:"▼▼▼ ";color:var(--warning-red)}
+  .rules-row.dn3{background:linear-gradient(90deg, rgba(239,68,68,.06), transparent)}
+  @media (max-width:768px){
+    .rules-row{grid-template-columns:1fr;gap:4px;padding:8px 0}
+    .rules-row > div{padding:8px 18px}
+    .rules-row.head{display:none}
+    .rules-row .react::before{content:"GAME → ";color:var(--neon-blue);font-family:var(--font-pixel);font-size:9px;margin-right:6px}
+    .rules-row .feel::before{content:"FEEL → ";color:var(--text-muted);font-family:var(--font-pixel);font-size:9px;margin-right:6px}
+  }
+
+  .note{
+    margin-top:18px;padding:14px 16px;border:1px dashed rgba(96,165,250,.35);border-radius:10px;
+    background:rgba(96,165,250,.04);color:#cbd5e1;font-size:13.5px;
+  }
+  .note b{color:#fff;font-weight:600}
+
+  /* ------- Enemy system ------- */
+  .enemy-roster{
+    display:grid;gap:16px;grid-template-columns:repeat(2,1fr);
+  }
+  @media (min-width:780px){ .enemy-roster{grid-template-columns:repeat(4,1fr)} }
+  .enemy-card{
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    border:1px solid var(--border-soft);border-radius:12px;
+    padding:18px;text-align:center;position:relative;
+  }
+  .enemy-card .sprite{
+    width:48px;height:48px;margin:6px auto 12px;
+    display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(6,1fr);
+  }
+  .enemy-card .sprite i{background:transparent}
+  .enemy-card .sprite i.on{background:currentColor}
+  .enemy-card .name{font-family:var(--font-pixel);font-size:10px;color:#fff;letter-spacing:.06em}
+  .enemy-card .tier{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:6px}
+  .enemy-card .hp{margin-top:10px;display:flex;justify-content:center;gap:2px}
+  .enemy-card .hp i{width:8px;height:8px;background:var(--warning-red);box-shadow:0 0 4px rgba(239,68,68,.7)}
+  .enemy-card .hp i.off{background:rgba(255,255,255,.1);box-shadow:none}
+
+  .data-table{
+    margin-top:24px;border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+  }
+  .data-table .dr{display:grid;grid-template-columns:1fr 1.4fr;border-bottom:1px solid var(--border-soft)}
+  .data-table .dr:last-child{border-bottom:0}
+  .data-table .dr.head{font-family:var(--font-pixel);font-size:10px;color:var(--text-muted);letter-spacing:.06em;background:rgba(255,255,255,.02)}
+  .data-table .dr > div{padding:14px 18px;font-size:14px}
+  .data-table .dr .k{color:#fff;font-weight:500}
+  .data-table .dr .v{color:#cbd5e1;font-family:var(--font-mono);font-size:13px}
+
+  /* ------- Mobile UX layout viz ------- */
+  .ux-grid{
+    display:grid;gap:24px;grid-template-columns:1fr;align-items:center;
+  }
+  @media (min-width:980px){ .ux-grid{grid-template-columns:.85fr 1.15fr} }
+  .ux-list{display:flex;flex-direction:column;gap:14px}
+  .ux-item{
+    border:1px solid var(--border-soft);border-radius:12px;
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    padding:18px 20px;display:flex;gap:16px;
+  }
+  .ux-item .num{
+    flex:none;width:36px;height:36px;border-radius:8px;
+    background:rgba(96,165,250,.10);border:1px solid rgba(96,165,250,.4);
+    color:var(--neon-blue);display:grid;place-items:center;
+    font-family:var(--font-pixel);font-size:11px;
+  }
+  .ux-item h4{font-size:15px;margin:0 0 4px}
+  .ux-item p{font-size:13.5px}
+
+  .anatomy{
+    position:relative;display:flex;justify-content:center;
+  }
+  .anatomy .phone{box-shadow: 0 30px 80px -20px rgba(0,0,0,.7)}
+  .anatomy .label{
+    position:absolute;font-family:var(--font-mono);font-size:11px;color:#cbd5e1;
+    background:rgba(11,16,32,.85);border:1px solid var(--border-mid);
+    padding:5px 9px;border-radius:6px;white-space:nowrap;
+  }
+  .anatomy .label::before{
+    content:"";position:absolute;width:30px;height:1px;background:rgba(96,165,250,.7);
+    top:50%;
+  }
+  .anatomy .label.r::before{left:100%;}
+  .anatomy .label.l::before{right:100%;}
+  /* desktop only labels */
+  @media (max-width:979px){ .anatomy .label{display:none} }
+
+  /* ------- Beta / CTA ------- */
+  .beta-card{
+    background:linear-gradient(160deg, rgba(34,197,94,.12), rgba(96,165,250,.10) 60%, rgba(11,16,32,1));
+    border:1px solid rgba(34,197,94,.3);border-radius:18px;
+    padding:36px;display:grid;gap:28px;grid-template-columns:1fr;align-items:center;
+    position:relative;overflow:hidden;
+  }
+  @media (min-width:880px){ .beta-card{grid-template-columns:1.2fr .8fr;padding:48px} }
+  .beta-card::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:24px 24px;pointer-events:none;
+    mask-image:linear-gradient(135deg, #000 0%, transparent 80%);
+  }
+  .beta-card h2{font-size:clamp(24px, 3.4vw, 36px)}
+  .beta-list{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+  .beta-list li{font-size:14px;color:#cbd5e1;display:flex;gap:10px;align-items:flex-start}
+  .beta-list li::before{
+    content:"";flex:none;width:10px;height:10px;margin-top:6px;
+    background:var(--neon-green);box-shadow:0 0 6px rgba(34,197,94,.7);
+  }
+  .beta-form{
+    position:relative;z-index:1;
+    background:rgba(5,8,22,.7);border:1px solid var(--border-mid);
+    border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px;
+  }
+  .beta-form label{font-family:var(--font-pixel);font-size:9px;color:var(--text-muted);letter-spacing:.08em}
+  .beta-form input{
+    height:46px;padding:0 14px;border-radius:8px;
+    background:#04060f;border:1px solid var(--border-mid);color:#fff;
+    font-family:var(--font-mono);font-size:14px;outline:none;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  .beta-form input:focus{border-color:rgba(34,197,94,.6);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+  .beta-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .beta-form .fine{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin-top:2px}
+  .beta-form .ok{
+    display:none;text-align:center;color:#bbf7d0;font-family:var(--font-mono);font-size:13px;
+    padding:14px;border:1px dashed rgba(34,197,94,.5);border-radius:8px;background:rgba(34,197,94,.06);
+  }
+  .beta-form.sent .field{display:none}
+  .beta-form.sent .ok{display:block}
+
+  /* ------- Roadmap ------- */
+  .roadmap{display:grid;gap:16px;grid-template-columns:1fr}
+  @media (min-width:780px){ .roadmap{grid-template-columns:repeat(2,1fr)} }
+  @media (min-width:1100px){ .roadmap{grid-template-columns:repeat(4,1fr)} }
+  .rm-card{
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    border:1px solid var(--border-soft);border-radius:14px;
+    padding:22px;position:relative;overflow:hidden;
+    transition:transform .28s ease, border-color .25s ease, box-shadow .3s ease;
+  }
+  .rm-card:hover{
+    transform:translateY(-6px);
+    border-color:rgba(96,165,250,.45);
+    box-shadow: 0 18px 40px -20px rgba(96,165,250,.5), 0 0 0 1px rgba(96,165,250,.25) inset;
+  }
+  .rm-card .ver{font-family:var(--font-pixel);font-size:11px;color:var(--neon-green);letter-spacing:.06em}
+  .rm-card .when{font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted);margin-top:6px}
+  .rm-card h3{margin:14px 0 6px;font-size:17px}
+  .rm-card p{font-size:13.5px}
+  .rm-card .out{
+    margin-top:14px;padding-top:14px;border-top:1px dashed var(--border-soft);
+    font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted);
+  }
+  .rm-card .out b{color:#cbd5e1;font-weight:500}
+  .rm-card.active{
+    border-color:rgba(34,197,94,.45);
+    box-shadow:0 0 0 1px rgba(34,197,94,.25) inset, 0 14px 40px -20px rgba(34,197,94,.4)
+  }
+  .rm-card .badge{
+    position:absolute;top:14px;right:14px;font-family:var(--font-pixel);font-size:8px;
+    background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.5);color:#bbf7d0;
+    padding:4px 6px;border-radius:4px;letter-spacing:.08em;
+  }
+
+  /* ------- Hypotheses ------- */
+  .hypo .card{padding:24px}
+  .hypo .num{
+    font-family:var(--font-pixel);font-size:11px;color:var(--neon-blue);letter-spacing:.06em
+  }
+  .hypo h3{font-size:17px;margin:12px 0 8px}
+  .hypo .metric{
+    margin-top:14px;padding-top:14px;border-top:1px dashed var(--border-soft);
+    font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)
+  }
+  .hypo .metric b{color:#cbd5e1;font-weight:500}
+
+  /* ------- Pricing ------- */
+  .price-grid{display:grid;gap:16px;grid-template-columns:1fr}
+  @media (min-width:780px){ .price-grid{grid-template-columns:1fr 1fr} }
+  .price-card{
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    border:1px solid var(--border-soft);border-radius:16px;
+    padding:30px;
+  }
+  .price-card.pro{
+    border-color:rgba(96,165,250,.45);
+    box-shadow:0 0 0 1px rgba(96,165,250,.15) inset, 0 14px 40px -24px rgba(96,165,250,.4)
+  }
+  .price-card .tier{font-family:var(--font-pixel);font-size:11px;letter-spacing:.08em;color:var(--neon-green)}
+  .price-card.pro .tier{color:var(--neon-blue)}
+  .price-card .num{
+    font-family:var(--font-mono);font-weight:700;font-size:38px;color:#fff;margin-top:14px;
+    line-height:1;
+  }
+  .price-card .num small{font-size:14px;color:var(--text-muted);font-weight:500;margin-left:6px}
+  .price-card ul{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+  .price-card li{font-size:14px;color:#cbd5e1;display:flex;gap:10px}
+  .price-card li::before{content:"+";color:var(--neon-green);font-family:var(--font-mono)}
+  .price-card.pro li::before{content:"⬢";color:var(--neon-blue);font-size:10px;margin-top:5px}
+
+  /* ------- FAQ ------- */
+  .faq-list{display:grid;gap:10px}
+  .faq-item{
+    border:1px solid var(--border-soft);border-radius:12px;
+    background:linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    overflow:hidden;
+  }
+  .faq-q{
+    width:100%;text-align:left;padding:18px 56px 18px 22px;
+    font-size:15.5px;font-weight:600;color:#fff;display:block;position:relative;
+    transition:background .2s ease;
+  }
+  .faq-q:hover{background:rgba(255,255,255,.02)}
+  .faq-q::after{
+    content:"+";position:absolute;right:22px;top:50%;transform:translateY(-50%);
+    font-family:var(--font-mono);font-size:22px;color:var(--neon-green);
+    transition:transform .25s ease;
+  }
+  .faq-item.open .faq-q::after{transform:translateY(-50%) rotate(45deg)}
+  .faq-a{
+    max-height:0;overflow:hidden;transition:max-height .35s ease;
+    padding:0 22px;color:var(--text-muted);font-size:14px;line-height:1.7;
+  }
+  .faq-item.open .faq-a{padding:0 22px 20px}
+
+  /* ------- Footer ------- */
+  footer.site{
+    border-top:1px solid var(--border-soft);
+    padding:52px 0 40px;margin-top:40px;background:rgba(3,5,13,.7)
+  }
+  .foot-grid{
+    display:grid;grid-template-columns:1fr;gap:30px;
+  }
+  @media (min-width:780px){ .foot-grid{grid-template-columns:1.4fr 1fr 1fr 1fr} }
+  .foot-grid h5{
+    font-family:var(--font-pixel);font-size:10px;color:var(--text-muted);
+    letter-spacing:.08em;margin:0 0 14px;text-transform:uppercase
+  }
+  .foot-grid a{display:block;font-size:13.5px;color:#cbd5e1;margin-bottom:8px}
+  .foot-grid a:hover{color:#fff}
+  .foot-bottom{
+    margin-top:40px;padding-top:24px;border-top:1px solid var(--border-soft);
+    display:flex;flex-direction:column;gap:14px;justify-content:space-between
+  }
+  @media (min-width:780px){ .foot-bottom{flex-direction:row;align-items:center} }
+  .foot-bottom .cr{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim)}
+  .foot-disclaimer{
+    margin-top:18px;padding:16px 18px;border:1px dashed rgba(239,68,68,.35);border-radius:10px;
+    background:rgba(239,68,68,.04);color:#fecaca;font-size:12.5px;line-height:1.6;
+  }
+  .foot-disclaimer b{color:#fff}
+
+  /* ------- Fade-in ------- */
+  .fade{opacity:0;transform:translateY(18px);transition:opacity .7s ease, transform .7s ease}
+  .fade.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion: reduce){
+    .fade{opacity:1;transform:none}
+  }
+
+  /* ------- Fixed mobile CTA ------- */
+  .mobile-cta{
+    position:fixed;left:12px;right:12px;bottom:12px;z-index:60;
+    display:flex;gap:10px;
+    backdrop-filter:blur(12px);
+    background:rgba(5,8,22,.72);
+    border:1px solid var(--border-mid);
+    padding:10px;border-radius:14px;
+    box-shadow:0 14px 40px -10px rgba(0,0,0,.7);
+  }
+  .mobile-cta .btn{flex:1;height:46px;font-size:14px}
+  @media (min-width:768px){ .mobile-cta{display:none} }
+
+  /* shake helper */
+  @keyframes shake {
+    0%,100%{transform:translate(0,0)}
+    20%{transform:translate(-1px, 1px)}
+    40%{transform:translate(1px, -1px)}
+    60%{transform:translate(-1px, -1px)}
+    80%{transform:translate(1px, 1px)}
+  }
+  .stage.shake{animation:shake .25s linear infinite}
+
+  /* utility */
+  .center{text-align:center}
+  .mt-32{margin-top:32px}
+</style>
+</head>
+<body>
+<div class="bg-fx" aria-hidden="true"></div>
+
+<header class="site">
+  <div class="wrap nav">
+    <a href="#top" class="brand" aria-label="KOSPI Space Defender 홈">
+      <div class="brand-mark" aria-hidden="true">
+        <!-- 5x5 invader -->
+        <i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+        <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+        <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+        <i class="b"></i><i></i><i class="b"></i><i></i><i class="b"></i>
+        <i></i><i class="b"></i><i></i><i class="b"></i><i></i>
+      </div>
+      <div>
+        <div class="brand-name">KOSPI&nbsp;DEFENDER</div>
+        <div class="brand-sub">market invader alert</div>
+      </div>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#problem">문제</a>
+      <a href="#solution">솔루션</a>
+      <a href="#rules">게임 규칙</a>
+      <a href="#roadmap">로드맵</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a href="#beta" class="nav-cta" aria-label="베타 신청 섹션으로 이동">베타 신청</a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============= HERO ============= -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="fade">
+      <span class="eyebrow">PUBLIC BETA · v0.1 MVP</span>
+      <h1 style="margin-top:18px">
+        시장이 흔들리면,<br />
+        <span class="green">적들이 먼저</span> <span class="accent">공격합니다</span>
+      </h1>
+      <p class="lede">
+        실시간 코스피200 선물 움직임을 레트로 픽셀 슈팅 게임 난이도로 변환해,
+        시장 급락을 숫자가 아닌 <b style="color:#fff">탄막·경고 연출</b>로 체감하게 만드는
+        새로운 투자자용 warning game.
+      </p>
+      <div class="hero-cta">
+        <a href="#beta" class="btn btn-primary" aria-label="베타 테스트 신청하기">
+          베타 테스트 신청하기
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 7h11M7 2l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+        </a>
+        <a href="#demo" class="btn btn-ghost" aria-label="15초 데모 보기">
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg>
+          15초 데모 보기
+        </a>
+      </div>
+      <div class="hero-meta">
+        <span class="pill"><span class="blip"></span> LIVE&nbsp;FEED · DEMO</span>
+        <span class="pill demo"><span class="blip"></span> MOBILE&nbsp;WEB&nbsp;/&nbsp;PWA</span>
+        <span class="pill"><span class="blip" style="background:#facc15;box-shadow:0 0 8px #facc15"></span> 1주&nbsp;MVP</span>
+      </div>
+      <div class="hero-ticker" aria-hidden="true">
+        <span class="dot"></span>
+        <div style="font-family:var(--font-pixel);font-size:9px;color:#cbd5e1">KSP200F</div>
+        <div class="marquee">
+          <div class="marquee-track">
+            <span>KSP200F&nbsp;<span class="ticker-dn">−0.34%</span></span>
+            <span>SMSG&nbsp;<span class="ticker-dn">−1.21%</span></span>
+            <span>HNX&nbsp;<span class="ticker-up">+0.42%</span></span>
+            <span>SKHY&nbsp;<span class="ticker-dn">−0.88%</span></span>
+            <span>NVR&nbsp;<span class="ticker-up">+0.15%</span></span>
+            <span>KKBN&nbsp;<span class="ticker-dn">−0.51%</span></span>
+            <span>LGES&nbsp;<span class="ticker-up">+0.27%</span></span>
+            <span>POSC&nbsp;<span class="ticker-dn">−0.62%</span></span>
+            <!-- duplicate for seamless loop -->
+            <span>KSP200F&nbsp;<span class="ticker-dn">−0.34%</span></span>
+            <span>SMSG&nbsp;<span class="ticker-dn">−1.21%</span></span>
+            <span>HNX&nbsp;<span class="ticker-up">+0.42%</span></span>
+            <span>SKHY&nbsp;<span class="ticker-dn">−0.88%</span></span>
+            <span>NVR&nbsp;<span class="ticker-up">+0.15%</span></span>
+            <span>KKBN&nbsp;<span class="ticker-dn">−0.51%</span></span>
+            <span>LGES&nbsp;<span class="ticker-up">+0.27%</span></span>
+            <span>POSC&nbsp;<span class="ticker-dn">−0.62%</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone mockup -->
+    <div class="phone-wrap fade" aria-hidden="false" aria-label="픽셀 슈팅 게임 모바일 화면 예시">
+      <div class="phone-glow"></div>
+      <div class="phone" id="heroPhone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="scr-status">
+            <span>9:41</span>
+            <span class="right">
+              <span class="bars"><i></i><i></i><i></i></span>
+              <span>5G</span>
+              <span class="batt"></span>
+            </span>
+          </div>
+          <div class="scr-header">
+            <div class="row">
+              <div>
+                <div class="sym">KOSPI 200 FUTURES · 06월물</div>
+                <div class="price" id="kspPrice">342.18</div>
+              </div>
+              <div style="text-align:right">
+                <div class="chg dn" id="kspChg">−0.34%</div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:4px" id="kspChg2">1m −0.18%</div>
+              </div>
+            </div>
+            <div class="scr-spark">
+              <svg viewBox="0 0 200 40" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sg" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0" stop-color="#ef4444" stop-opacity=".5"/>
+                    <stop offset="1" stop-color="#ef4444" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,12 L14,10 L28,14 L42,9 L56,16 L70,12 L84,18 L98,15 L112,22 L126,19 L140,26 L154,22 L168,29 L182,26 L200,33" stroke="#ef4444" stroke-width="1.5" fill="none"/>
+                <path d="M0,12 L14,10 L28,14 L42,9 L56,16 L70,12 L84,18 L98,15 L112,22 L126,19 L140,26 L154,22 L168,29 L182,26 L200,33 L200,40 L0,40 Z" fill="url(#sg)"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="hud">
+              <div class="hud-box">WAVE&nbsp;<b id="hudWave">03</b></div>
+              <div class="hud-box">DIFF&nbsp;<b id="hudDiff">x1.8</b></div>
+            </div>
+            <!-- player -->
+            <div class="player" id="player" aria-hidden="true">
+              <!-- 6x4 ship -->
+              <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+              <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+              <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+              <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+            </div>
+            <div class="alert-banner" id="alertBanner">! MARKET ALERT !</div>
+            <div class="check-banner" id="checkBanner">CHECK YOUR WATCHLIST</div>
+          </div>
+
+          <div class="scr-footer">
+            <div class="stat-cell warn">
+              <div class="lbl">MARKET</div>
+              <div class="val" id="cellMarket">−0.34%</div>
+              <div class="meter"><i id="mMarket" style="width:62%;background:var(--warning-red)"></i></div>
+            </div>
+            <div class="stat-cell blue">
+              <div class="lbl">BULLET</div>
+              <div class="val" id="cellBullet">LV 2</div>
+              <div class="meter"><i id="mBullet" style="width:30%;background:var(--neon-blue)"></i></div>
+            </div>
+            <div class="stat-cell warn">
+              <div class="lbl">WARNING</div>
+              <div class="val" id="cellWarn">LV 2</div>
+              <div class="meter"><i id="mWarn" style="width:60%;background:var(--warning-red)"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= PROBLEM ============= -->
+<section id="problem">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">PROBLEM · ALERT FATIGUE</span>
+      <h2>숫자 알림은 너무 쉽게<br />무시됩니다</h2>
+      <p>주가 알림은 대부분 숫자와 텍스트로 도착합니다. 하지만 업무 중이거나 이동 중일 때, 반복되는 알림은 금방 피로해지고 정작 중요한 급락 신호도 놓치기 쉽습니다.</p>
+    </div>
+    <div class="grid grid-3">
+      <article class="card fade">
+        <div class="pixel-icon b">
+          <i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+        </div>
+        <div class="card-num" style="margin-top:14px">PROBLEM&nbsp;01</div>
+        <h3>숫자 알림 피로</h3>
+        <p>반복되는 가격 알림은 시간이 갈수록 무시되기 쉽습니다. 푸시가 쌓일수록 진짜 위험 신호와 일상 노이즈의 구분이 흐려집니다.</p>
+      </article>
+      <article class="card fade">
+        <div class="pixel-icon r">
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+        </div>
+        <div class="card-num" style="margin-top:14px">PROBLEM&nbsp;02</div>
+        <h3>급락장의 즉시성 부족</h3>
+        <p>시장은 빠르게 움직이지만, 일반 알림은 긴급감을 충분히 전달하지 못합니다. 1.0% 급락도 화면에서는 그냥 글자 한 줄로만 보입니다.</p>
+      </article>
+      <article class="card fade">
+        <div class="pixel-icon y">
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+        </div>
+        <div class="card-num" style="margin-top:14px">PROBLEM&nbsp;03</div>
+        <h3>정보와 행동의 단절</h3>
+        <p>시세 확인 앱과 관심종목 점검 행동은 분리되어 있어, 알림을 봐도 실제 대응으로 이어지기 어렵습니다.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SOLUTION ============= -->
+<section id="solution" style="background:rgba(11,16,32,.35);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">SOLUTION · TRANSLATE</span>
+      <h2>시장 데이터를<br />게임 문법으로 번역합니다</h2>
+      <p>코스피200 선물과 주요 종목의 움직임을 게임 규칙으로 변환합니다. 시장이 하락하면 적의 공격이 강해지고, 상승하면 플레이어의 탄막이 강화됩니다.</p>
+    </div>
+    <div class="flow">
+      <article class="card fade">
+        <div class="step">01</div>
+        <div class="pixel-icon g">
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+        </div>
+        <h3>Market Feed</h3>
+        <p>코스피200 선물과 주요 종목의 1분 변화율, 거래량 급증을 수집합니다.</p>
+      </article>
+      <article class="card fade">
+        <div class="step">02</div>
+        <div class="pixel-icon b">
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+        </div>
+        <h3>Game Engine</h3>
+        <p>하락률은 적의 공격 속도·탄막 패턴·체력으로, 상승률은 플레이어 강화로 변환됩니다.</p>
+      </article>
+      <article class="card fade">
+        <div class="step">03</div>
+        <div class="pixel-icon r">
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+        </div>
+        <h3>Alert UX</h3>
+        <p>급락 기준 도달 시 경고 문구·진동·푸시·강제 Alert Mode로 위험을 즉시 전달합니다.</p>
+      </article>
+      <article class="card fade">
+        <div class="step">04</div>
+        <div class="pixel-icon y">
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+        </div>
+        <h3>Portfolio Check</h3>
+        <p>사용자는 관심종목·보유종목 메모를 점검하고, 필요한 경우 증권앱으로 이동합니다.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============= DEMO ============= -->
+<section id="demo">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">15-SEC DEMO</span>
+      <h2>하락장은 더 위험하게,<br />상승장은 더 강하게</h2>
+      <p>시장의 변화가 곧 게임의 변화가 됩니다. 숫자로만 보던 등락률을 직접 플레이하며 체감할 수 있습니다.</p>
+    </div>
+    <div class="scenes">
+      <article class="scene fade">
+        <div class="scene-screen" id="scene1">
+          <div class="scene-tag">SCENE 01</div>
+          <div class="scene-chg chg dn">−0.34%</div>
+        </div>
+        <div class="scene-body">
+          <h4>긴장감 시작</h4>
+          <p>선물 −0.3% 하락 → 적의 발사 간격 감소, 조준탄이 추가됩니다.</p>
+        </div>
+      </article>
+      <article class="scene fade">
+        <div class="scene-screen" id="scene2">
+          <div class="scene-tag">SCENE 02</div>
+          <div class="scene-chg chg dn">−0.71%</div>
+        </div>
+        <div class="scene-body">
+          <h4>패닉 패턴</h4>
+          <p>−0.7% 이하 → 화면 흔들림, 경고 문구, 진동이 함께 발생합니다.</p>
+        </div>
+      </article>
+      <article class="scene fade">
+        <div class="scene-screen" id="scene3">
+          <div class="scene-tag">SCENE 03</div>
+          <div class="scene-chg chg dn">−1.62%</div>
+        </div>
+        <div class="scene-body">
+          <h4>강제 Alert Mode</h4>
+          <p>−1.5% 이하 → 게임이 멈추고 시장 경고 화면이 강제로 표시됩니다.</p>
+        </div>
+      </article>
+      <article class="scene fade">
+        <div class="scene-screen" id="scene4">
+          <div class="scene-tag">SCENE 04</div>
+          <div class="scene-chg chg dn">GAME OVER</div>
+        </div>
+        <div class="scene-body">
+          <h4>관심종목 확인</h4>
+          <p>“시장이 급변했습니다. 관심종목을 확인하세요.” 메시지로 다음 행동을 유도합니다.</p>
+        </div>
+      </article>
+    </div>
+    <div class="center mt-32">
+      <a href="#beta" class="btn btn-warn">내 관심종목으로 테스트해보기 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============= RULES ============= -->
+<section id="rules" style="background:rgba(11,16,32,.35);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">GAME RULES</span>
+      <h2>주가가 움직이면,<br />적들도 움직입니다</h2>
+      <p>선물 1분 변화율이 게임의 난이도를 그대로 좌우합니다. 시장 조건마다 적의 행동과 사용자가 받는 체감이 다르게 설계되어 있습니다.</p>
+    </div>
+    <div class="rules fade">
+      <div class="rules-row head">
+        <div>시장 조건</div><div>게임 반응</div><div>사용자 경험</div>
+      </div>
+      <div class="rules-row up">
+        <div class="cond">선물 1m ≥ +0.3%</div>
+        <div class="react">자동 탄막 강화 · 쿨다운 감소</div>
+        <div class="feel">상승장 — 공격 쉬움, score bonus</div>
+      </div>
+      <div class="rules-row flat">
+        <div class="cond">선물 1m ±0.1%</div>
+        <div class="react">기본 공격 · 기본 이동</div>
+        <div class="feel">관망장 — 표준 난이도</div>
+      </div>
+      <div class="rules-row dn1">
+        <div class="cond">선물 1m ≤ −0.3%</div>
+        <div class="react">적 발사 간격 감소 · 조준탄 추가</div>
+        <div class="feel">하락장 — 긴장감 증가</div>
+      </div>
+      <div class="rules-row dn2">
+        <div class="cond">선물 1m ≤ −0.7%</div>
+        <div class="react">패닉 패턴 · 경고 문구 · 진동</div>
+        <div class="feel">급락장 — 실패 가능성 상승</div>
+      </div>
+      <div class="rules-row dn3">
+        <div class="cond">선물 1m ≤ −1.5%</div>
+        <div class="react">강제 Alert Mode 진입</div>
+        <div class="feel">관심종목 점검 유도</div>
+      </div>
+    </div>
+    <div class="note fade">
+      <b>게임 실패는 단순한 패배가 아닙니다.</b><br />
+      시장이 위험해졌다는 warning event이며, 사용자가 관심종목을 다시 확인하도록 돕는 UX입니다.
+    </div>
+  </div>
+</section>
+
+<!-- ============= ENEMY SYSTEM ============= -->
+<section id="enemy">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">ENEMY SYSTEM</span>
+      <h2>기업들은<br />픽셀 인베이더가 됩니다</h2>
+      <p>주요 코스피 종목을 원본 아이덴티티 대신 추상화된 픽셀 심볼로 표현합니다. 시가총액 비중이 클수록 적의 수·크기·체력에 영향을 주고, 개별 종목이 하락하면 해당 적의 공격성이 높아집니다.</p>
+    </div>
+
+    <div class="enemy-roster fade">
+      <!-- Each: abstract sprite + ticker placeholder code -->
+      <article class="enemy-card">
+        <div class="sprite" style="color:#60a5fa;filter:drop-shadow(0 0 6px rgba(96,165,250,.6))" aria-hidden="true">
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+        </div>
+        <div class="name">TICKER-A</div>
+        <div class="tier">CAP TIER · S · 18%</div>
+        <div class="hp"><i></i><i></i><i></i><i></i><i></i></div>
+      </article>
+      <article class="enemy-card">
+        <div class="sprite" style="color:#34d399;filter:drop-shadow(0 0 6px rgba(52,211,153,.6))" aria-hidden="true">
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+          <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+        </div>
+        <div class="name">TICKER-B</div>
+        <div class="tier">CAP TIER · A · 9%</div>
+        <div class="hp"><i></i><i></i><i></i><i></i><i class="off"></i></div>
+      </article>
+      <article class="enemy-card">
+        <div class="sprite" style="color:#facc15;filter:drop-shadow(0 0 6px rgba(250,204,21,.6))" aria-hidden="true">
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+          <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+        </div>
+        <div class="name">TICKER-C</div>
+        <div class="tier">CAP TIER · A · 6%</div>
+        <div class="hp"><i></i><i></i><i></i><i class="off"></i><i class="off"></i></div>
+      </article>
+      <article class="enemy-card">
+        <div class="sprite" style="color:#c084fc;filter:drop-shadow(0 0 6px rgba(192,132,252,.6))" aria-hidden="true">
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+          <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+          <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+          <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+        </div>
+        <div class="name">TICKER-D</div>
+        <div class="tier">CAP TIER · B · 4%</div>
+        <div class="hp"><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+      </article>
+    </div>
+
+    <div class="data-table fade">
+      <div class="dr head">
+        <div>데이터 입력</div><div>게임 파라미터</div>
+      </div>
+      <div class="dr"><div class="k">시가총액 비중</div><div class="v">enemy count · size · HP</div></div>
+      <div class="dr"><div class="k">종목 1분 등락률</div><div class="v">bullet speed · fire rate</div></div>
+      <div class="dr"><div class="k">선물 1분 등락률</div><div class="v">global difficulty multiplier</div></div>
+      <div class="dr"><div class="k">거래량 급증</div><div class="v">special pattern · warning</div></div>
+    </div>
+
+    <div class="note fade">
+      <b>주의:</b> 본 페이지의 적 스프라이트는 모두 추상화된 원본 픽셀 아트입니다. 실제 기업 로고는 사용하지 않으며,
+      공개 서비스 단계에서는 기업 식별 시각요소 대신 자체 디자인 픽셀 심볼을 적용합니다.
+    </div>
+  </div>
+</section>
+
+<!-- ============= MOBILE UX ============= -->
+<section id="mobile" style="background:rgba(11,16,32,.35);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">MOBILE UX · ONE-THUMB</span>
+      <h2>스마트폰에서 바로<br />플레이하고, 바로 확인합니다</h2>
+      <p>좌우 버튼 없이, 손가락으로 기체를 드래그해 이동합니다. 총알은 자동 발사. <b style="color:#fff">One thumb play. Fast warning. No complex chart.</b></p>
+    </div>
+
+    <div class="ux-grid">
+      <div class="ux-list fade">
+        <div class="ux-item">
+          <div class="num">01</div>
+          <div>
+            <h4>Market Header</h4>
+            <p>코스피200 선물 현재가, 1분/당일 등락률, 미니 차트, 실시간 상태 배지(LIVE / DEMO / ALERT).</p>
+          </div>
+        </div>
+        <div class="ux-item">
+          <div class="num">02</div>
+          <div>
+            <h4>Game Stage</h4>
+            <p>정사각형에 가까운 전투 영역. 기업 픽셀 적, 자동 탄막, drag move, warning effect 표시.</p>
+          </div>
+        </div>
+        <div class="ux-item">
+          <div class="num">03</div>
+          <div>
+            <h4>Status Panel</h4>
+            <p>Market Impact · Bullet Level · Warning Level을 3칸 구조로 한 눈에 요약.</p>
+          </div>
+        </div>
+        <div class="ux-item">
+          <div class="num">04</div>
+          <div>
+            <h4>Portfolio Action</h4>
+            <p>MVP는 관심종목 리스트와 메모 확인. 향후 증권앱 딥링크와 포트폴리오 연동을 검토합니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="anatomy fade">
+        <div class="phone" style="width:min(280px, 80vw)">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="scr-status">
+              <span>9:41</span>
+              <span class="right"><span class="bars"><i></i><i></i><i></i></span><span>5G</span><span class="batt"></span></span>
+            </div>
+            <div class="scr-header">
+              <div class="row">
+                <div>
+                  <div class="sym">KOSPI 200 FUTURES</div>
+                  <div class="price">342.18</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="chg dn">−0.34%</div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:4px">1m −0.18%</div>
+                </div>
+              </div>
+            </div>
+            <div class="stage">
+              <div class="hud">
+                <div class="hud-box">WAVE&nbsp;<b>03</b></div>
+                <div class="hud-box">DIFF&nbsp;<b>x1.8</b></div>
+              </div>
+              <!-- static enemies -->
+              <div class="enemy blue" style="left:20%;top:20%">
+                <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+                <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+                <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+                <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+                <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+                <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+              </div>
+              <div class="enemy green" style="left:55%;top:25%">
+                <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+                <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+                <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+                <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+                <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+                <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+              </div>
+              <div class="enemy yellow" style="left:35%;top:45%">
+                <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+                <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+                <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+                <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+                <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+                <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+              </div>
+              <div class="player" style="bottom:30px">
+                <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+                <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+                <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+                <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+              </div>
+            </div>
+            <div class="scr-footer">
+              <div class="stat-cell warn"><div class="lbl">MARKET</div><div class="val">−0.34%</div><div class="meter"><i style="width:62%;background:var(--warning-red)"></i></div></div>
+              <div class="stat-cell blue"><div class="lbl">BULLET</div><div class="val">LV 2</div><div class="meter"><i style="width:30%;background:var(--neon-blue)"></i></div></div>
+              <div class="stat-cell warn"><div class="lbl">WARN</div><div class="val">LV 2</div><div class="meter"><i style="width:60%;background:var(--warning-red)"></i></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= BETA ============= -->
+<section id="beta">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">BETA · WEEK 1 MVP</span>
+      <h2>1주 MVP로<br />먼저 검증합니다</h2>
+      <p>이번 베타의 목표는 완성형 게임을 만드는 것이 아니라, 시장 데이터가 게임 난이도로 바뀌는 경험이 실제로 유용한지 검증하는 것입니다.</p>
+    </div>
+
+    <div class="beta-card fade">
+      <div>
+        <h2 style="margin-bottom:8px">베타 테스터로 참여하기</h2>
+        <p style="font-size:15px;color:#cbd5e1">초기 베타는 무료로 제공되며, 참여자의 피드백은 서비스 개선에 직접 반영됩니다.</p>
+        <ul class="beta-list">
+          <li>모바일 웹에서 즉시 플레이 가능한 basic build</li>
+          <li>demo feed 기반 시장 연동 게임</li>
+          <li>급락 상황별 warning mode 체험</li>
+          <li>관심종목 리스트 입력 및 확인</li>
+          <li>피드백 반영을 통한 v0.2 개선</li>
+        </ul>
+      </div>
+      <form class="beta-form" id="betaForm" novalidate>
+        <div class="field" style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label for="bf-email">EMAIL</label>
+            <input id="bf-email" type="email" inputmode="email" autocomplete="email" placeholder="trader@example.com" required />
+          </div>
+          <div class="row2">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label for="bf-style">투자 스타일</label>
+              <input id="bf-style" type="text" placeholder="단기 / 스윙 / 장기" />
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label for="bf-watch">관심 종목 (선택)</label>
+              <input id="bf-watch" type="text" placeholder="예: 005930, 000660" />
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" style="margin-top:4px">베타 테스트 신청하기 →</button>
+          <p class="fine">제출 시 데모 안내 메일을 받게 됩니다. 본 서비스는 투자 권유·자동매매 서비스가 아닙니다.</p>
+        </div>
+        <div class="ok">
+          ✓ 신청이 접수되었습니다.<br />
+          베타 일정이 확정되는 대로 입력하신 이메일로 안내드립니다.
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============= ROADMAP ============= -->
+<section id="roadmap" style="background:rgba(11,16,32,.35);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">ROADMAP</span>
+      <h2>Playable demo에서<br />개인화 warning game으로</h2>
+      <p>1주 MVP에서 시작해 데이터 인프라와 알림 개인화를 거쳐, 정식 베타와 수익화 실험까지 단계별로 검증합니다.</p>
+    </div>
+    <div class="roadmap">
+      <article class="rm-card active fade">
+        <span class="badge">NOW</span>
+        <div class="ver">MVP v0.1</div>
+        <div class="when">WEEK 1</div>
+        <h3>난이도 연동 검증</h3>
+        <p>시장 데이터와 게임 난이도가 실제 연결되는지 검증. 모바일 웹 playable demo.</p>
+        <div class="out"><b>산출물:</b> 모바일 웹 playable demo</div>
+      </article>
+      <article class="rm-card fade">
+        <div class="ver">BETA v0.2</div>
+        <div class="when">WEEK 2–3</div>
+        <h3>개인화 알림</h3>
+        <p>관심종목과 알림 기준 개인화. PWA, 알림 설정, 피드백 반영.</p>
+        <div class="out"><b>산출물:</b> PWA · 알림 설정 · 피드백 반영</div>
+      </article>
+      <article class="rm-card fade">
+        <div class="ver">DATA v0.3</div>
+        <div class="when">WEEK 4–6</div>
+        <h3>실시간 인프라</h3>
+        <p>안정적인 실시간 feed와 로그 분석. WebSocket과 DB, analytics 구축.</p>
+        <div class="out"><b>산출물:</b> WebSocket · DB · analytics</div>
+      </article>
+      <article class="rm-card fade">
+        <div class="ver">LAUNCH v1.0</div>
+        <div class="when">WEEK 7–8</div>
+        <h3>베타 공개 & 수익화</h3>
+        <p>베타 공개 및 수익화 실험. 랜딩페이지, 구독/후원, 커뮤니티.</p>
+        <div class="out"><b>산출물:</b> 랜딩 · 구독/후원 · 커뮤니티</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============= HYPOTHESES ============= -->
+<section id="hypotheses">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">HYPOTHESES</span>
+      <h2>우리가 검증하려는 것</h2>
+      <p>실 수강생 후기 대신, 베타로 검증할 가설을 명시합니다. 베타 종료 후 데이터로 결론을 갱신할 예정입니다.</p>
+    </div>
+    <div class="grid grid-3 hypo">
+      <article class="card fade">
+        <div class="num">HYPOTHESIS&nbsp;01</div>
+        <h3>가격 알림보다 더 빨리 알아차릴 수 있을까?</h3>
+        <p>게임 난이도 변화가 일반 알림보다 시장 급변을 더 빠르게 인지시키는지 확인합니다.</p>
+        <div class="metric"><b>측정 지표:</b> 알림 인지까지 걸린 시간(median)</div>
+      </article>
+      <article class="card fade">
+        <div class="num">HYPOTHESIS&nbsp;02</div>
+        <h3>경고 후 관심종목을 실제로 확인할까?</h3>
+        <p>게임 실패와 warning screen이 관심종목 점검 행동으로 이어지는지 측정합니다.</p>
+        <div class="metric"><b>측정 지표:</b> Alert→Watchlist 클릭 전환율</div>
+      </article>
+      <article class="card fade">
+        <div class="num">HYPOTHESIS&nbsp;03</div>
+        <h3>금융앱보다 더 자주 접속하게 될까?</h3>
+        <p>레트로 픽셀 UI와 게임성이 반복 접속을 만드는지 검증합니다.</p>
+        <div class="metric"><b>측정 지표:</b> 주간 평균 세션 수</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============= PRICING ============= -->
+<section id="pricing" style="background:rgba(11,16,32,.35);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">PRICING</span>
+      <h2>베타는 무료,<br />수익화는 천천히</h2>
+      <p>MVP와 초기 베타는 무료로 제공됩니다. 사용자 반응을 검증한 뒤, Pro 기능을 단계적으로 확장합니다.</p>
+    </div>
+    <div class="price-grid">
+      <article class="price-card fade">
+        <div class="tier">BETA · FREE</div>
+        <div class="num">0<small>원 / 평생</small></div>
+        <p style="margin-top:10px">초기 베타 기간 동안 모든 핵심 기능 무료. 피드백이 서비스 방향을 결정합니다.</p>
+        <ul>
+          <li>코스피200 선물 기반 난이도 연동</li>
+          <li>관심종목 1세트 등록</li>
+          <li>warning mode 기본 알림</li>
+          <li>v0.2 우선 액세스</li>
+        </ul>
+      </article>
+      <article class="price-card pro fade">
+        <div class="tier">PRO · 예상</div>
+        <div class="num">3,000<small>~4,000원 / 월</small></div>
+        <p style="margin-top:10px">투자앱 보조 서비스로서 가격 저항을 낮게 설정합니다. 정식 출시 시점에 확정됩니다.</p>
+        <ul>
+          <li>관심종목 다중 설정 · 다중 룰</li>
+          <li>커스텀 스킨 / 픽셀 테마</li>
+          <li>고급 알림 (시간대 · 임계값)</li>
+          <li>백테스트형 게임 리플레이</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============= FAQ ============= -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head fade">
+      <span class="eyebrow">FAQ</span>
+      <h2>자주 묻는 질문</h2>
+    </div>
+    <div class="faq-list fade">
+      <article class="faq-item">
+        <button class="faq-q" aria-expanded="false">이 서비스가 투자 추천을 해주나요?</button>
+        <div class="faq-a"><p>아니요. KOSPI Space Defender는 투자 판단이나 매매 추천을 하지 않습니다. 시장 변화를 게임형 알림으로 보여주는 warning UX 서비스이며, 모든 투자 판단은 사용자 본인의 책임입니다.</p></div>
+      </article>
+      <article class="faq-item">
+        <button class="faq-q" aria-expanded="false">실제 계좌를 연결해야 하나요?</button>
+        <div class="faq-a"><p>MVP에서는 계좌 연결 없이 관심종목을 직접 입력하는 방식으로 시작합니다. 향후 사용자가 원할 경우 증권앱 딥링크나 포트폴리오 연동을 검토할 수 있습니다.</p></div>
+      </article>
+      <article class="faq-item">
+        <button class="faq-q" aria-expanded="false">실시간 데이터는 어디서 가져오나요?</button>
+        <div class="faq-a"><p>MVP는 demo feed 또는 설정 가능한 API endpoint로 시작합니다. 추후 KIS, KRX, 상용 API 등 안정적인 실시간 데이터 연동을 검토합니다.</p></div>
+      </article>
+      <article class="faq-item">
+        <button class="faq-q" aria-expanded="false">기업 로고를 게임 적으로 사용해도 되나요?</button>
+        <div class="faq-a"><p>이번 베타는 자체 디자인의 추상 픽셀 심볼만 사용합니다. 공개 서비스에서도 기업 로고는 사용 권리와 브랜드 가이드 확인 없이는 사용하지 않으며, 대체 픽셀 심볼 시스템을 우선합니다.</p></div>
+      </article>
+      <article class="faq-item">
+        <button class="faq-q" aria-expanded="false">게임이 너무 자주 경고하면 피곤하지 않을까요?</button>
+        <div class="faq-a"><p>사용자별 알림 임계값, quiet mode, 하루 알림 횟수 제한을 적용해 알림 피로를 줄이는 방향으로 설계합니다. 베타 기간 동안 적정값을 함께 찾아갈 예정입니다.</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============= FOOTER ============= -->
+<footer class="site">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="brand" style="margin-bottom:14px">
+          <div class="brand-mark" aria-hidden="true">
+            <i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+            <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+            <i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i>
+            <i class="b"></i><i></i><i class="b"></i><i></i><i class="b"></i>
+            <i></i><i class="b"></i><i></i><i class="b"></i><i></i>
+          </div>
+          <div>
+            <div class="brand-name">KOSPI&nbsp;DEFENDER</div>
+            <div class="brand-sub">market invader alert</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);max-width:320px">
+          시장 위험을 게임 문법으로 번역해, 더 빨리 체감하게 만드는 모바일 warning game.
+        </p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <a href="#solution">솔루션</a>
+        <a href="#rules">게임 규칙</a>
+        <a href="#mobile">모바일 UX</a>
+        <a href="#roadmap">로드맵</a>
+      </div>
+      <div>
+        <h5>Beta</h5>
+        <a href="#beta">베타 신청</a>
+        <a href="#hypotheses">검증 가설</a>
+        <a href="#pricing">가격</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div>
+        <h5>Legal</h5>
+        <a href="#">개인정보 처리방침</a>
+        <a href="#">이용약관</a>
+        <a href="mailto:hello@kospi-defender.dev">문의하기</a>
+      </div>
+    </div>
+
+    <div class="foot-disclaimer">
+      <b>고지:</b> 본 서비스는 투자 권유, 종목 추천, 자동매매 서비스가 아닙니다.
+      시장 데이터를 시각적으로 표현하는 정보성 warning game이며, 모든 투자 판단은 사용자 본인의 책임입니다.
+      Not financial advice.
+    </div>
+
+    <div class="foot-bottom">
+      <div class="cr">© 2026 KOSPI Space Defender · Market Invader Alert</div>
+      <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim)">
+        BUILD v0.1 · DEMO FEED · KST <span id="footClock">--:--:--</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Mobile fixed CTA -->
+<div class="mobile-cta" role="region" aria-label="모바일 빠른 액션">
+  <a href="#demo" class="btn btn-ghost" aria-label="데모 보기">데모</a>
+  <a href="#beta" class="btn btn-primary" aria-label="베타 테스트 신청하기">베타 신청하기</a>
+</div>
+
+<script>
+/* ----------------------------------------
+   1. Fade-in on scroll
+---------------------------------------- */
+(() => {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.fade').forEach(el => io.observe(el));
+})();
+
+/* ----------------------------------------
+   2. FAQ accordion
+---------------------------------------- */
+(() => {
+  document.querySelectorAll('.faq-item').forEach(item => {
+    const q = item.querySelector('.faq-q');
+    const a = item.querySelector('.faq-a');
+    q.addEventListener('click', () => {
+      const open = item.classList.toggle('open');
+      q.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        a.style.maxHeight = a.scrollHeight + 'px';
+      } else {
+        a.style.maxHeight = '0px';
+      }
+    });
+  });
+})();
+
+/* ----------------------------------------
+   3. Beta form submit (no backend; mock)
+---------------------------------------- */
+(() => {
+  const form = document.getElementById('betaForm');
+  if (!form) return;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('bf-email').value.trim();
+    if (!email || !email.includes('@')) {
+      const inp = document.getElementById('bf-email');
+      inp.style.borderColor = 'var(--warning-red)';
+      inp.focus();
+      return;
+    }
+    form.classList.add('sent');
+  });
+})();
+
+/* ----------------------------------------
+   4. Footer KST clock
+---------------------------------------- */
+(() => {
+  const el = document.getElementById('footClock');
+  if (!el) return;
+  const upd = () => {
+    const d = new Date();
+    // KST = UTC+9
+    const kst = new Date(d.getTime() + (d.getTimezoneOffset() + 540) * 60000);
+    const p = (n) => String(n).padStart(2, '0');
+    el.textContent = `${p(kst.getHours())}:${p(kst.getMinutes())}:${p(kst.getSeconds())}`;
+  };
+  upd();
+  setInterval(upd, 1000);
+})();
+
+/* ----------------------------------------
+   5. Hero phone — animated pixel game loop
+   simulates market data driving difficulty
+---------------------------------------- */
+(() => {
+  const stage = document.getElementById('stage');
+  const player = document.getElementById('player');
+  const alertB = document.getElementById('alertBanner');
+  const checkB = document.getElementById('checkBanner');
+  const kspPrice = document.getElementById('kspPrice');
+  const kspChg = document.getElementById('kspChg');
+  const kspChg2 = document.getElementById('kspChg2');
+  const hudDiff = document.getElementById('hudDiff');
+  const hudWave = document.getElementById('hudWave');
+  const cellMarket = document.getElementById('cellMarket');
+  const cellBullet = document.getElementById('cellBullet');
+  const cellWarn = document.getElementById('cellWarn');
+  const mMarket = document.getElementById('mMarket');
+  const mBullet = document.getElementById('mBullet');
+  const mWarn = document.getElementById('mWarn');
+
+  if (!stage) return;
+
+  // 6x6 sprite layouts
+  const sprites = {
+    a:[0,1,0,0,1,0, 1,1,1,1,1,1, 1,0,1,1,0,1, 1,1,1,1,1,1, 0,1,0,0,1,0, 1,0,0,0,0,1],
+    b:[0,0,1,1,0,0, 0,1,1,1,1,0, 1,1,0,0,1,1, 1,1,0,0,1,1, 0,1,1,1,1,0, 0,0,1,1,0,0],
+    c:[1,0,0,0,0,1, 1,1,0,0,1,1, 0,1,1,1,1,0, 0,1,0,0,1,0, 1,1,0,0,1,1, 1,0,0,0,0,1],
+    d:[0,1,0,0,1,0, 1,0,1,1,0,1, 0,1,1,1,1,0, 1,0,1,1,0,1, 0,1,0,0,1,0, 0,0,1,1,0,0]
+  };
+  const colorClasses = ['blue','green','yellow','purple','red'];
+
+  function makeEnemy(spriteKey, colorCls, x, y) {
+    const e = document.createElement('div');
+    e.className = 'enemy ' + colorCls;
+    const arr = sprites[spriteKey];
+    for (let i = 0; i < 36; i++) {
+      const cell = document.createElement('i');
+      if (arr[i]) cell.className = 'on';
+      e.appendChild(cell);
+    }
+    e.style.left = x + 'px';
+    e.style.top = y + 'px';
+    e._vx = 0.3 * (Math.random() > .5 ? 1 : -1);
+    e._vy = 0.04;
+    e._fire = Math.random() * 80 + 40;
+    stage.appendChild(e);
+    return e;
+  }
+
+  function makeBullet(x, y, dir = -1, klass = 'bullet') {
+    const b = document.createElement('div');
+    b.className = klass;
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
+    b._vy = dir * 2.2;
+    stage.appendChild(b);
+    return b;
+  }
+
+  // mutable game state
+  let enemies = [];
+  let bullets = [];
+  let ebullets = [];
+  let playerX = 0;     // relative center
+  let waveCount = 1;
+  let frame = 0;
+  let stageW = 0, stageH = 0;
+
+  // market sim state
+  let marketChg = -0.34;       // current 1m change %
+  let marketDay = -0.34;       // day change
+  let marketPrice = 342.18;
+  let scriptedTimeline = [
+    // [time(ms), chg%, dayChg%]
+    [0,    -0.18, -0.34],
+    [3500, -0.42, -0.55],
+    [7000, -0.71, -0.92],
+    [10500,-1.05, -1.32],
+    [14000,-1.62, -1.88],
+    [17000,-0.32, -1.05],
+    [20000, 0.12, -0.55],
+    [23000, 0.41,  0.10],
+    [26000, 0.18,  0.34],
+    [29000,-0.21,  0.12],
+  ];
+  let tlStart = performance.now();
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    stageW = r.width; stageH = r.height;
+  }
+  resize();
+  const ro = new ResizeObserver(resize); ro.observe(stage);
+
+  function spawnWave(diff) {
+    // clear remaining enemies
+    enemies.forEach(e => e.remove()); enemies = [];
+    const baseCount = 4;
+    const extra = Math.max(0, Math.min(3, Math.floor(diff)));
+    const total = baseCount + extra; // 4–7
+    const cols = total;
+    const cellW = stageW / (cols + 1);
+    const keys = Object.keys(sprites);
+    for (let i = 0; i < total; i++) {
+      const key = keys[i % keys.length];
+      const cls = colorClasses[i % colorClasses.length];
+      const x = cellW * (i + 1) - 12;
+      const y = 30 + Math.floor(i / cols) * 30;
+      enemies.push(makeEnemy(key, cls, x, y));
+    }
+    waveCount++;
+    hudWave.textContent = String(waveCount).padStart(2,'0');
+  }
+
+  function step() {
+    frame++;
+    // ----- timeline interpolation
+    const t = (performance.now() - tlStart);
+    const loopT = t % scriptedTimeline[scriptedTimeline.length - 1][0];
+    for (let i = 0; i < scriptedTimeline.length - 1; i++) {
+      const [t0, c0, d0] = scriptedTimeline[i];
+      const [t1, c1, d1] = scriptedTimeline[i + 1];
+      if (loopT >= t0 && loopT < t1) {
+        const k = (loopT - t0) / (t1 - t0);
+        marketChg = c0 + (c1 - c0) * k;
+        marketDay = d0 + (d1 - d0) * k;
+        break;
+      }
+    }
+    // price drifts with day change
+    marketPrice = 343.5 * (1 + marketDay / 100);
+
+    // ----- update UI HUD/screen
+    const upDown = marketChg < 0 ? 'dn' : (marketChg > 0 ? 'up' : 'flat');
+    const sign = marketChg >= 0 ? '+' : '−';
+    const txt = `${sign}${Math.abs(marketChg).toFixed(2)}%`;
+    const dayTxt = `${marketDay >= 0 ? '+' : '−'}${Math.abs(marketDay).toFixed(2)}%`;
+
+    kspPrice.textContent = marketPrice.toFixed(2);
+    kspChg.textContent = dayTxt;
+    kspChg.className = 'chg ' + (marketDay < 0 ? 'dn' : (marketDay > 0 ? 'up' : 'flat'));
+    kspChg2.textContent = `1m ${txt}`;
+
+    cellMarket.textContent = txt;
+    cellMarket.parentElement.className = 'stat-cell ' + (marketChg < -0.3 ? 'warn' : (marketChg > 0.1 ? 'green' : 'blue'));
+
+    // difficulty
+    let diff = 1;
+    if (marketChg <= -1.5) diff = 4;
+    else if (marketChg <= -0.7) diff = 3;
+    else if (marketChg <= -0.3) diff = 2;
+    else if (marketChg >= 0.3) diff = 0.6;
+    hudDiff.textContent = 'x' + diff.toFixed(1);
+
+    // bullet level (player advantage)
+    let bulletLv = 1;
+    if (marketChg >= 0.3) bulletLv = 3;
+    else if (marketChg >= 0.1) bulletLv = 2;
+    cellBullet.textContent = 'LV ' + bulletLv;
+    mBullet.style.width = (bulletLv * 25) + '%';
+
+    // warn level
+    let warnLv = 0;
+    if (marketChg <= -1.5) warnLv = 4;
+    else if (marketChg <= -0.7) warnLv = 3;
+    else if (marketChg <= -0.3) warnLv = 2;
+    else if (marketChg <= -0.1) warnLv = 1;
+    cellWarn.textContent = 'LV ' + warnLv;
+    mWarn.style.width = (warnLv * 22 + 4) + '%';
+    mWarn.style.background = warnLv >= 3 ? 'var(--warning-red)' : (warnLv >= 1 ? '#fbbf24' : 'var(--neon-green)');
+    cellWarn.parentElement.className = 'stat-cell ' + (warnLv >= 3 ? 'warn' : (warnLv >= 1 ? 'blue' : 'green'));
+
+    // market meter
+    mMarket.style.width = Math.min(100, Math.abs(marketChg) * 50 + 10) + '%';
+    mMarket.style.background = marketChg < -0.3 ? 'var(--warning-red)' : (marketChg > 0.1 ? 'var(--neon-green)' : 'var(--neon-blue)');
+
+    // alert visuals
+    if (marketChg <= -1.5) {
+      stage.classList.add('alert','shake');
+      alertB.classList.add('on');
+      checkB.classList.add('on');
+    } else if (marketChg <= -0.7) {
+      stage.classList.add('alert');
+      stage.classList.remove('shake');
+      alertB.classList.add('on');
+      checkB.classList.remove('on');
+    } else {
+      stage.classList.remove('alert','shake');
+      alertB.classList.remove('on');
+      checkB.classList.remove('on');
+    }
+
+    // ----- enemy spawn
+    if (enemies.length === 0) {
+      spawnWave(diff);
+    }
+
+    // ----- enemy movement + fire
+    enemies.forEach(e => {
+      let x = parseFloat(e.style.left), y = parseFloat(e.style.top);
+      x += e._vx * (1 + diff * 0.2);
+      y += e._vy * diff;
+      if (x < 4 || x > stageW - 28) e._vx *= -1;
+      e.style.left = x + 'px';
+      e.style.top = y + 'px';
+
+      // fire — frequency tied to diff
+      e._fire -= 1 + diff * 0.6;
+      if (e._fire <= 0) {
+        const eb = makeBullet(x + 10, y + 22, 1, 'ebullet');
+        ebullets.push(eb);
+        e._fire = 80 + Math.random() * 80 - diff * 14;
+      }
+    });
+
+    // ----- player movement (gentle sway)
+    playerX = Math.sin(frame * 0.025) * (stageW * 0.28);
+    player.style.left = `calc(50% + ${playerX}px)`;
+    player.style.transform = `translateX(-50%)`;
+
+    // player auto fire
+    const fireRate = bulletLv >= 3 ? 6 : (bulletLv >= 2 ? 10 : 16);
+    if (frame % fireRate === 0) {
+      const pr = player.getBoundingClientRect();
+      const sr = stage.getBoundingClientRect();
+      const px = pr.left - sr.left + pr.width / 2 - 1;
+      const py = pr.top - sr.top;
+      bullets.push(makeBullet(px, py - 6, -1, 'bullet'));
+      if (bulletLv >= 2) bullets.push(makeBullet(px - 6, py - 4, -1, 'bullet'));
+      if (bulletLv >= 3) bullets.push(makeBullet(px + 6, py - 4, -1, 'bullet'));
+    }
+
+    // ----- bullets
+    bullets = bullets.filter(b => {
+      let y = parseFloat(b.style.top);
+      y += b._vy * 2.5;
+      b.style.top = y + 'px';
+      if (y < -10) { b.remove(); return false; }
+      // collision
+      const bx = parseFloat(b.style.left);
+      for (let i = 0; i < enemies.length; i++) {
+        const e = enemies[i];
+        const ex = parseFloat(e.style.left), ey = parseFloat(e.style.top);
+        if (bx > ex && bx < ex + 24 && y > ey && y < ey + 24) {
+          // hit
+          e.style.opacity = '0';
+          setTimeout(()=> e.remove(), 60);
+          enemies.splice(i, 1);
+          b.remove();
+          return false;
+        }
+      }
+      return true;
+    });
+    ebullets = ebullets.filter(b => {
+      let y = parseFloat(b.style.top);
+      y += 1.4 + diff * 0.3;
+      b.style.top = y + 'px';
+      if (y > stageH + 10) { b.remove(); return false; }
+      return true;
+    });
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+})();
+
+/* ----------------------------------------
+   6. Demo storyboard mini scenes (4 frames)
+---------------------------------------- */
+(() => {
+  const scenes = [
+    { id: 'scene1', state: 'tense'   },
+    { id: 'scene2', state: 'panic'   },
+    { id: 'scene3', state: 'alert'   },
+    { id: 'scene4', state: 'fail'    },
+  ];
+
+  const enemySprite = (color) => {
+    const arr = [0,1,0,0,1,0, 1,1,1,1,1,1, 1,0,1,1,0,1, 1,1,1,1,1,1, 0,1,0,0,1,0, 1,0,0,0,0,1];
+    const el = document.createElement('div');
+    el.className = 'enemy ' + color;
+    arr.forEach(v => {
+      const i = document.createElement('i'); if (v) i.className = 'on'; el.appendChild(i);
+    });
+    return el;
+  };
+
+  scenes.forEach(({id, state}) => {
+    const root = document.getElementById(id);
+    if (!root) return;
+    const W = 200, H = 280;
+
+    // background overlay for alert states
+    if (state === 'panic' || state === 'alert') {
+      const o = document.createElement('div');
+      o.style.cssText = 'position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 60%, rgba(239,68,68,.18), transparent 75%);';
+      root.appendChild(o);
+    }
+    if (state === 'fail') {
+      const o = document.createElement('div');
+      o.style.cssText = 'position:absolute;inset:0;background:rgba(239,68,68,.10);';
+      root.appendChild(o);
+      const txt = document.createElement('div');
+      txt.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-pixel);color:#fecaca;text-align:center;padding:0 20px;';
+      txt.innerHTML = '<div style="font-size:12px;letter-spacing:.1em;color:#ef4444;margin-bottom:10px">GAME OVER</div>'
+        + '<div style="font-size:8px;color:#fff;line-height:1.6">시장이 급변했습니다.<br>관심종목을 확인하세요.</div>';
+      root.appendChild(txt);
+    }
+
+    if (state !== 'fail') {
+      // enemies
+      const positions = state === 'tense'
+        ? [['blue', 30, 60], ['green', 90, 50], ['yellow', 150, 65]]
+        : [['blue', 20, 50], ['green', 80, 45], ['yellow', 140, 55], ['red', 50, 90], ['purple', 120, 95]];
+      positions.forEach(([c, x, y]) => {
+        const e = enemySprite(c);
+        e.style.left = x + 'px'; e.style.top = y + 'px';
+        root.appendChild(e);
+      });
+      // player
+      const p = document.createElement('div');
+      p.className = 'player';
+      [0,0,1,1,0,0, 0,1,1,1,1,0, 1,1,1,1,1,1, 1,0,0,0,0,1].forEach(v => {
+        const i = document.createElement('i'); if (v) i.className = 'on'; p.appendChild(i);
+      });
+      p.style.bottom = '24px';
+      root.appendChild(p);
+
+      // enemy bullets
+      const bulletCount = state === 'alert' ? 10 : (state === 'panic' ? 7 : 3);
+      for (let i = 0; i < bulletCount; i++) {
+        const b = document.createElement('div');
+        b.className = 'ebullet';
+        b.style.left = (20 + (i * 17) % 160) + 'px';
+        b.style.top = (110 + (i * 23) % 90) + 'px';
+        root.appendChild(b);
+      }
+    }
+
+    // alert banner
+    if (state === 'panic' || state === 'alert') {
+      const ab = document.createElement('div');
+      ab.style.cssText = 'position:absolute;left:0;right:0;top:42%;text-align:center;font-family:var(--font-pixel);font-size:9px;color:#fff;background:linear-gradient(90deg, rgba(239,68,68,0), rgba(239,68,68,.85), rgba(239,68,68,0));padding:5px 0;letter-spacing:.08em;text-shadow:0 0 8px rgba(255,255,255,.4), 0 0 12px rgba(239,68,68,.8)';
+      ab.textContent = state === 'alert' ? '! ALERT MODE !' : '! MARKET ALERT !';
+      root.appendChild(ab);
+    }
+    if (state === 'alert') {
+      const cb = document.createElement('div');
+      cb.style.cssText = 'position:absolute;left:10px;right:10px;bottom:14px;text-align:center;font-family:var(--font-pixel);font-size:8px;color:#fef3c7;border:1px dashed rgba(250,204,21,.6);border-radius:4px;padding:5px;letter-spacing:.06em;background:rgba(250,204,21,.08)';
+      cb.textContent = 'CHECK YOUR WATCHLIST';
+      root.appendChild(cb);
+    }
+  });
+})();
+
+</script>
+</body>
+</html>
