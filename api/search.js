@@ -1,7 +1,10 @@
 'use strict';
 /**
  * Vercel 서버리스 함수 — /api/search
- * ?q=삼성전자  →  Naver 자동완성으로 국내 종목 검색
+ * ?q=삼성전자  →  2단계 검색으로 종목명+코드 반환
+ *
+ * 1단계: ac.search.naver.com 으로 자동완성 텍스트 목록 조회
+ * 2단계: 각 후보에 " 주가" 붙여 병렬 조회 → answer 필드에서 종목코드 추출
  */
 const https = require('https');
 
@@ -18,12 +21,8 @@ function checkRateLimit(ip) {
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer':    'https://finance.naver.com/',
-        'Accept':     'application/json',
-      },
-      timeout: 5000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+      timeout: 4000,
     }, res => {
       const buf = [];
       res.on('data', c => buf.push(c));
@@ -32,6 +31,28 @@ function httpsGet(url) {
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
   });
+}
+
+const AC_BASE = 'https://ac.search.naver.com/nx/ac?q_enc=UTF-8&st=11&frm=nv&r_format=json&r_enc=UTF-8&r_unicode=0&t_koreng=1&ans=2&run=2&rev=4&rq_m=co&nw=1';
+
+async function acSearch(q) {
+  const r = await httpsGet(`${AC_BASE}&q=${encodeURIComponent(q)}`);
+  if (r.status !== 200) throw new Error('AC HTTP ' + r.status);
+  return JSON.parse(r.body);
+}
+
+// "종목명 주가" 쿼리에서 answer → {name, code, market} 추출
+async function resolveCode(nameQuery) {
+  try {
+    const d = await acSearch(nameQuery);
+    const a = d.answer?.[0];
+    if (!a || a.length < 6) return null;
+    // answer 배열: [?, displayName, type, ?, ?, code, market, price, ...]
+    const code = a[5];
+    if (!/^\d{6}$/.test(code)) return null;
+    const name = a[1].replace(/\s*주가$/, '').trim();
+    return { name, code, market: a[6] || '' };
+  } catch (_) { return null; }
 }
 
 module.exports = async function handler(req, res) {
@@ -45,17 +66,35 @@ module.exports = async function handler(req, res) {
   if (!q.trim()) return res.json({ results: [] });
 
   try {
-    const r = await httpsGet(
-      `https://ac.finance.naver.com/ac?q=${encodeURIComponent(q)}&q_enc=UTF-8&st=111&ssc=tab.ac.stock&ie=utf8&independent=true&cs=utf-8`
+    // 1단계: 자동완성 텍스트 목록
+    const d = await acSearch(q);
+    const rawItems = d.items?.[0] || [];
+
+    // 중복 없이 후보 이름 수집 (최대 8개)
+    const seen = new Set();
+    const candidates = [];
+    for (const [text] of rawItems) {
+      const base = text.replace(/\s*주가$/, '').trim();
+      if (!seen.has(base)) { seen.add(base); candidates.push(base); }
+      if (candidates.length >= 8) break;
+    }
+
+    // 2단계: 병렬로 "이름 주가" 코드 조회
+    const settled = await Promise.allSettled(
+      candidates.map(name => resolveCode(name + ' 주가'))
     );
-    if (r.status !== 200) throw new Error('HTTP ' + r.status);
-    const d = JSON.parse(r.body);
-    // items[0]: [[이름, 코드, 타입, 시장], ...]
-    const results = (d.items?.[0] || []).slice(0, 6).map(item => ({
-      name:   item[0],
-      code:   item[1],
-      market: item[3] || '',
-    }));
+
+    const results = [];
+    const codeSeen = new Set();
+    for (const s of settled) {
+      if (s.status !== 'fulfilled' || !s.value) continue;
+      const { name, code, market } = s.value;
+      if (codeSeen.has(code)) continue;
+      codeSeen.add(code);
+      results.push({ name, code, market });
+      if (results.length >= 6) break;
+    }
+
     return res.json({ results });
   } catch (e) {
     return res.status(503).json({ results: [], error: e.message });
