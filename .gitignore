@@ -9,6 +9,9 @@ node_modules/
 # Vercel
 .vercel/
 
+# Claude Code 로컬 설정 (로컬 경로·권한 정보 포함)
+.claude/
+
 # 로그
 *.log
 npm-debug.log*
