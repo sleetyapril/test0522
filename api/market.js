@@ -70,23 +70,40 @@ function getSession() {
   const t   = kst.getUTCHours() * 60 + kst.getUTCMinutes();
   if (day >= 1 && day <= 5 && t >= 540  && t <= 945) return 'day';
   if (t >= 1080 && day >= 1 && day <= 6)             return 'night';
-  if (t <  300  && (day >= 2 || day === 0))           return 'night';
+  if (t <  360  && (day >= 2 || day === 0))           return 'night';
   return 'closed';
+}
+
+function logSubscription(apiName, symbol, lastPrice) {
+  console.log('[market-subscription]', {
+    apiName,
+    symbol,
+    timestamp: new Date().toISOString(),
+    lastPrice,
+  });
 }
 
 function getNearMonthCode() {
   const now  = Date.now();
   const kst  = new Date(now + 9 * 3_600_000);
   const year = kst.getUTCFullYear();
-  const yy   = String(year % 100).padStart(2, '0');
   for (const m of [3, 6, 9, 12]) {
     let d = new Date(Date.UTC(year, m - 1, 1));
     while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate() + 1);
     d.setUTCDate(d.getUTCDate() + 7);
     d.setUTCHours(6, 45, 0, 0);
-    if (now < d.getTime()) return `101W${yy}${String(m).padStart(2, '0')}`;
+    if (now < d.getTime()) return `101W${String(m).padStart(2, '0')}`;
   }
-  return `101W${String((year + 1) % 100).padStart(2, '0')}03`;
+  return '101W03';
+}
+
+function getKisFuturesSymbol(session) {
+  const month = getNearMonthCode().slice(-2);
+  if (session === 'night') {
+    const code = month === '12' ? 'C' : String(parseInt(month, 10));
+    return `101W${code}000`;
+  }
+  return `101S${month}`;
 }
 
 async function kisToken(appKey, appSecret) {
@@ -107,16 +124,14 @@ async function kisToken(appKey, appSecret) {
 // 주간·야간 tr_id를 순서대로 시도해 선물 현재가(또는 종가) 반환
 async function kisFutures(appKey, appSecret, session) {
   const token = await kisToken(appKey, appSecret);
-  const code  = getNearMonthCode();
-  // 세션에 맞는 tr_id를 먼저 시도하고, 실패 시 반대 tr_id도 시도
-  const trIds = session === 'night'
-    ? ['FHKIF03020100', 'FHKIF03010100']
-    : ['FHKIF03010100', 'FHKIF03020100'];
+  const code  = getKisFuturesSymbol(session);
+  // 세션에 맞는 KIS API만 사용한다. 야간 실패 시 주간 선물로 위장하지 않고 현물 fallback으로 내려간다.
+  const trIds = ['FHMIF10000000'];
 
   for (const trId of trIds) {
     try {
       const r = await httpsReq('GET',
-        `${KIS_REST}/uapi/domestic-futureoption/v1/quotations/inquire-price?FUT_CODE=${code}`,
+        `${KIS_REST}/uapi/domestic-futureoption/v1/quotations/inquire-price?FID_COND_MRKT_DIV_CODE=F&FID_INPUT_ISCD=${code}`,
         null, {
           authorization: `Bearer ${token}`,
           appkey:        appKey,
@@ -127,10 +142,10 @@ async function kisFutures(appKey, appSecret, session) {
       if (r.status !== 200) continue;
       const d = JSON.parse(r.body);
       if (d.rt_cd !== '0') continue;
-      const o         = d.output;
-      const price     = parseFloat(o.futs_prpr);
-      const chDay     = parseFloat(o.prdy_ctrt);
-      const prevClose = parseFloat(o.futs_bspr) || (price - parseFloat(o.prdy_vrss || '0'));
+      const o         = d.output || d.output1 || {};
+      const price     = parseFloat(o.futs_prpr || o.stck_prpr);
+      const chDay     = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt);
+      const prevClose = parseFloat(o.futs_bspr || o.hts_thpr) || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || '0'));
       if (isNaN(price) || price < 100) continue;
       return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose, contractCode: code };
     } catch (_) {}
@@ -246,12 +261,13 @@ module.exports = async function handler(req, res) {
   if (type === 'stock' && stockCode) {
     try {
       const d = await fetchNaverStock(stockCode);
+      logSubscription(d.nxt ? 'Naver NXT stock quote' : 'Naver domestic stock quote', stockCode, d.price);
       return res.json({
         price:    d.price,
         ch1m:     0,
         chDay:    d.chDay,
         session,
-        source:   d.nxt ? 'nxt' : (d.isOpen ? session : 'closed'),
+        source:   'stock',
         prevClose: d.prevClose,
         name:     d.name,
         pollingInterval: d.pollingInterval,
@@ -267,13 +283,19 @@ module.exports = async function handler(req, res) {
   if (APP_KEY && type !== 'spot') {
     try {
       const d = await kisFutures(APP_KEY, APP_SECRET, session);
+      const apiName = session === 'night'
+        ? 'KIS [국내선물옵션] 실시간시세 > KRX야간선물 실시간종목체결'
+        : 'KIS [국내선물옵션] 실시간시세 > 지수선물 실시간체결가';
+      logSubscription(apiName, d.contractCode, d.price);
       _state.futures = { ...d, ts: Date.now() };  // 종가 캐시 갱신
       return res.json({
         price:        d.price,
         ch1m:         0,
         chDay:        d.chDay,
         session,
-        source:       session === 'closed' ? 'closed' : session,
+        source:       session === 'night' ? 'night_futures'
+                    : session === 'day' ? 'day_futures'
+                    : 'closed',
         prevClose:    d.prevClose,
         contractCode: d.contractCode,
         pollingInterval: 5000,
@@ -301,12 +323,18 @@ module.exports = async function handler(req, res) {
   // ── 2순위: 네이버 KPI200 현물 ──
   try {
     const d = await fetchNaver();
+    const source = type === 'futures' ? 'spot_fallback' : (d.isOpen ? 'spot' : 'closed');
+    logSubscription(
+      type === 'futures' ? 'KOSPI200 Spot Fallback' : 'Naver KOSPI200 spot quote',
+      'KPI200',
+      d.price
+    );
     return res.json({
       price:    d.price,
       ch1m:     0,
       chDay:    d.chDay,
       session,
-      source:   d.isOpen ? session : 'closed',
+      source,
       prevClose: d.prevClose,
       pollingInterval: d.pollingInterval,
       ts: Date.now(),

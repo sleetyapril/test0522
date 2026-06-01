@@ -15,6 +15,8 @@ const http      = require('http');
 const path      = require('path');
 const fs        = require('fs');
 const WebSocket = require('ws');
+const marketApiHandler = require('./api/market');
+const searchApiHandler = require('./api/search');
 
 // ── .env 로드 ──────────────────────────────────
 const envPath = path.join(__dirname, '.env');
@@ -45,8 +47,17 @@ function getSession() {
   const t   = kst.getUTCHours() * 60 + kst.getUTCMinutes();
   if (day >= 1 && day <= 5 && t >= 540  && t <= 945) return 'day';
   if (t >= 1080 && day >= 1 && day <= 6)             return 'night';
-  if (t <  300  && (day >= 2 || day === 0))           return 'night';
+  if (t <  360  && (day >= 2 || day === 0))           return 'night';
   return 'closed';
+}
+
+function logSubscription(apiName, symbol, lastPrice) {
+  console.log('[market-subscription]', {
+    apiName,
+    symbol,
+    timestamp: new Date().toISOString(),
+    lastPrice,
+  });
 }
 
 function httpsReq(method, url, body, extraHeaders = {}) {
@@ -92,17 +103,24 @@ function getNearMonthCode() {
   const now      = Date.now();
   const kst      = new Date(now + 9 * 3_600_000);
   const year     = kst.getUTCFullYear();
-  const yy       = String(year % 100).padStart(2, '0');
   const quarters = [3, 6, 9, 12];
 
   for (const month of quarters) {
     const expiry = getSecondThursday(year, month);
     if (now < expiry.getTime()) {
-      return `101W${yy}${String(month).padStart(2, '0')}`;
+      return `101W${String(month).padStart(2, '0')}`;
     }
   }
-  const next = String((year + 1) % 100).padStart(2, '0');
-  return `101W${next}03`;
+  return '101W03';
+}
+
+function getKisFuturesSymbol(session) {
+  const month = getNearMonthCode().slice(-2);
+  if (session === 'night') {
+    const code = month === '12' ? 'C' : String(parseInt(month, 10));
+    return `101W${code}000`;
+  }
+  return `101S${month}`;
 }
 
 // ── 공유 데이터 캐시 ───────────────────────────
@@ -111,7 +129,7 @@ const cache = {
   ch1m:      0,
   chDay:     0,
   session:   'closed',
-  source:    'demo',   // 'day'|'night'|'closed'|'demo'
+  source:    'demo',   // 'day_futures'|'night_futures'|'spot_fallback'|'closed'|'demo'
   prevClose: 1389,
   contractCode: '',
   ts:        Date.now(),
@@ -178,13 +196,13 @@ async function kisGetAccessToken() {
 async function kisFetchFutures() {
   if (!kis.accessToken || Date.now() >= kis.tokenExp) await kisGetAccessToken();
 
-  const code    = getNearMonthCode();
   const session = getSession();
+  const code    = getKisFuturesSymbol(session);
   // 주간: FHKIF03010100 / 야간: FHKIF03020100
-  const trId    = session === 'night' ? 'FHKIF03020100' : 'FHKIF03010100';
+  const trId    = 'FHMIF10000000';
 
   const res = await httpsReq('GET',
-    `${KIS_REST}/uapi/domestic-futureoption/v1/quotations/inquire-price?FUT_CODE=${code}`,
+    `${KIS_REST}/uapi/domestic-futureoption/v1/quotations/inquire-price?FID_COND_MRKT_DIV_CODE=F&FID_INPUT_ISCD=${code}`,
     null, {
       authorization: `Bearer ${kis.accessToken}`,
       appkey:        APP_KEY,
@@ -197,10 +215,10 @@ async function kisFetchFutures() {
   const d = JSON.parse(res.body);
   if (d.rt_cd !== '0') throw new Error(`KIS: ${d.msg1} (rt_cd=${d.rt_cd})`);
 
-  const o        = d.output;
-  const price    = parseFloat(o.futs_prpr);   // 선물 현재가
-  const chDay    = parseFloat(o.prdy_ctrt);   // 전일 대비율 %
-  const prevClose = parseFloat(o.futs_bspr) || (price - parseFloat(o.prdy_vrss));
+  const o        = d.output || d.output1 || {};
+  const price    = parseFloat(o.futs_prpr || o.stck_prpr);   // 선물 현재가
+  const chDay    = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt);   // 전일 대비율 %
+  const prevClose = parseFloat(o.futs_bspr || o.hts_thpr) || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || '0'));
 
   if (isNaN(price) || price < 100) throw new Error('유효하지 않은 선물가: ' + o.futs_prpr);
   return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose };
@@ -220,8 +238,8 @@ async function kisConnect() {
   }
 
   const session = getSession();
-  const trId    = session === 'night' ? 'H0NFCNT0' : 'H0ZFCNT0';
-  const code    = getNearMonthCode();
+  const trId    = session === 'night' ? 'H0MFCNT0' : 'H0IFCNT0';
+  const code    = getKisFuturesSymbol(session);
   cache.contractCode = code;
   console.log(`[KIS] WebSocket 연결  tr_id=${trId}  code=${code}`);
 
@@ -284,8 +302,15 @@ async function kisConnect() {
     cache.price  = price;
     cache.ch1m   = clamp(ch1m,  -3,  3);
     cache.chDay  = isNaN(chDay) ? cache.chDay : clamp(chDay, -5, 5);
-    cache.source = session === 'night' ? 'night' : 'day';
+    cache.source = session === 'night' ? 'night_futures' : 'day_futures';
     cache.ts     = Date.now();
+    logSubscription(
+      session === 'night'
+        ? 'KIS [국내선물옵션] 실시간시세 > KRX야간선물 실시간종목체결'
+        : 'KIS [국내선물옵션] 실시간시세 > 지수선물 실시간체결가',
+      fields[0] || cache.contractCode,
+      price
+    );
   });
 
   ws.on('close', (code, reason) => {
@@ -386,7 +411,7 @@ async function yfFetchV7() {
   const q = JSON.parse(res.body).quoteResponse?.result?.[0];
   if (!q?.regularMarketPrice) throw new Error('no price');
   const cur  = q.regularMarketPrice;
-  const prev = cache.source === 'day' ? cache.price : (q.regularMarketPreviousClose || cur);
+  const prev = cache.source === 'day_futures' ? cache.price : (q.regularMarketPreviousClose || cur);
   return {
     price: cur,
     ch1m:  prev && prev !== cur ? (cur - prev) / prev * 100 : 0,
@@ -424,7 +449,7 @@ async function poll() {
     return;
   }
 
-  let price = null, chDay = 0, prevClose = cache.prevClose, dataSource = '';
+  let price = null, chDay = 0, prevClose = cache.prevClose, dataSource = '', source = '';
 
   // ── 1순위: KIS REST — 실제 선물 가격 ──
   if (APP_KEY) {
@@ -435,7 +460,10 @@ async function poll() {
       prevClose  = d.prevClose || prevClose;
       nextPollMs = 5_000;   // 5초 폴링
       failStreak = 0;
-      dataSource = 'KIS';
+      dataSource = cache.session === 'night'
+        ? 'KIS [국내선물옵션] 실시간시세 > KRX야간선물 실시간종목체결'
+        : 'KIS [국내선물옵션] 실시간시세 > 지수선물 실시간체결가';
+      source = cache.session === 'night' ? 'night_futures' : 'day_futures';
     } catch (e) {
       console.warn('[KIS REST]', e.message);
     }
@@ -449,7 +477,8 @@ async function poll() {
       chDay      = d.chDay;
       nextPollMs = d.pollingInterval;
       failStreak = 0;
-      dataSource = 'Naver';
+      dataSource = 'KOSPI200 Spot Fallback';
+      source = 'spot_fallback';
     } catch (e) {
       console.warn('[Naver]', e.message);
     }
@@ -479,8 +508,9 @@ async function poll() {
     cache.ch1m     = clamp(calc1mChange(price), -3, 3);
     cache.chDay    = clamp(chDay, -5, 5);
     cache.prevClose = prevClose;
-    cache.source   = cache.session;
+    cache.source   = source || 'spot_fallback';
     cache.ts       = Date.now();
+    logSubscription(dataSource, cache.source === 'spot_fallback' ? 'KPI200' : cache.contractCode, price);
     console.log(`[KOSPI|${dataSource}] ${price.toFixed(2)}  1m:${cache.ch1m.toFixed(3)}%  day:${chDay.toFixed(3)}%`);
   } else {
     // ── 4순위: 시뮬레이션 ──
@@ -502,8 +532,8 @@ function schedulePoll() {
 // 시작
 // ═══════════════════════════════════════════════
 (async () => {
-  cache.contractCode = getNearMonthCode();
   cache.session      = getSession();
+  cache.contractCode = getKisFuturesSymbol(cache.session);
 
   if (APP_KEY) {
     console.log('[KIS] API 키 감지 → KIS REST 선물 폴링 시작');
@@ -527,7 +557,10 @@ function schedulePoll() {
 // ═══════════════════════════════════════════════
 const app = express();
 
-app.get('/api/market', (_req, res) => {
+app.get('/api/market', (req, res) => {
+  const type = req.query.type || 'futures';
+  if (type === 'stock' || type === 'spot') return marketApiHandler(req, res);
+
   res.json({
     price:        +cache.price.toFixed(2),
     ch1m:         +cache.ch1m.toFixed(4),
@@ -542,6 +575,7 @@ app.get('/api/market', (_req, res) => {
     kisLive:       kis.connected,
   });
 });
+app.get('/api/search', searchApiHandler);
 
 app.use(express.static(__dirname));
 app.get('/',     (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));

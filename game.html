@@ -324,7 +324,7 @@ const MKT = {
   ch: 0,           // 1분 변화율 %
   hist: [],
   alertFired: false,
-  source: 'demo',  // 'live-day' | 'live-night' | 'demo'
+  source: 'demo',  // 'live-day-futures' | 'live-night-futures' | 'spot-fallback' | 'demo'
   session: 'closed',
   simTimer: 0,
   pollErrors: 0,
@@ -341,7 +341,7 @@ function getSession() {
   const t   = kst.getUTCHours()*60 + kst.getUTCMinutes();
   if (day>=1&&day<=5&&t>=540&&t<=945) return 'day';   // 주간 09:00-15:45
   if (t>=1080&&day>=1&&day<=6)        return 'night'; // 야간 18:00- (월-토)
-  if (t<300&&(day>=2||day===0))       return 'night'; // 야간 -05:00 (화-일)
+  if (t<360&&(day>=2||day===0))       return 'night'; // 야간 -06:00 (화-일)
   return 'closed';
 }
 
@@ -370,7 +370,10 @@ async function fetchMarket() {
   const id = setTimeout(()=>ctrl.abort(), 6000);
   try {
     let url = '/api/market?type=' + MKT.type;
-    if (MKT.type === 'stock' && MKT.stockCode) url += '&code=' + MKT.stockCode;
+    if (MKT.type === 'stock') {
+      if (!MKT.stockCode) throw new Error('stock code missing');
+      url += '&code=' + MKT.stockCode;
+    }
     const r = await fetch(url, {signal:ctrl.signal, cache:'no-store'});
     clearTimeout(id);
     if (!r.ok) throw new Error('HTTP '+r.status);
@@ -390,6 +393,33 @@ function applyData(price, ch, source) {
   }
 }
 
+function normalizeSource(source) {
+  if (source === 'day' || source === 'day_futures') return 'live-day-futures';
+  if (source === 'night' || source === 'night_futures') return 'live-night-futures';
+  if (source === 'spot_fallback' || source === 'spot' || source === 'stock' || source === 'nxt') return 'spot-fallback';
+  if (source === 'closed') return 'closed';
+  return 'demo';
+}
+
+function sourceApiName(source) {
+  if (source === 'live-day-futures') return 'KIS [국내선물옵션] 실시간시세 > 지수선물 실시간체결가';
+  if (source === 'live-night-futures') return 'KIS [국내선물옵션] 실시간시세 > KRX야간선물 실시간종목체결';
+  if (source === 'spot-fallback' && MKT.type === 'stock') return 'Naver domestic stock quote';
+  if (source === 'spot-fallback' && MKT.type === 'spot') return 'Naver KOSPI200 spot quote';
+  if (source === 'spot-fallback') return 'KOSPI200 Spot Fallback';
+  return 'Demo Mode';
+}
+
+function logMarketData(d, source) {
+  const symbol = d.contractCode || (MKT.type === 'stock' ? (MKT.stockCode || MKT.stockName) : 'KPI200');
+  console.log('[market-subscription]', {
+    apiName: sourceApiName(source),
+    symbol,
+    timestamp: new Date(d.ts || Date.now()).toISOString(),
+    lastPrice: d.price,
+  });
+}
+
 // ── 시뮬레이션 tick (서버 응답 없을 때 fallback) ──
 function simTick() {
   const shock=(Math.random()-.47)*.55;
@@ -405,22 +435,31 @@ async function pollMarket() {
     MKT.session = d.session;
     if (d.name && MKT.type === 'stock' && !MKT.stockName) MKT.stockName = d.name;
 
-    if (d.source === 'day' || d.source === 'night' || d.source === 'nxt') {
+    const source = normalizeSource(d.source);
+    logMarketData(d, source);
+
+    if (MKT.type === 'stock' && d.source !== 'stock' && d.source !== 'closed') {
+      throw new Error('stock mode received non-stock source: ' + d.source);
+    }
+    if (MKT.type === 'stock' && d.price < 1000) {
+      throw new Error('stock mode received index-like price: ' + d.price);
+    }
+
+    if (source === 'live-day-futures' || source === 'live-night-futures' || source === 'spot-fallback') {
       _pushWin(d.price);
       const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
-      const src  = d.source === 'day' ? 'live-day'
-                 : d.source === 'nxt' ? 'live-nxt' : 'live-night';
-      applyData(d.price, Math.max(-3, Math.min(2, ch1m)), src);
+      applyData(d.price, Math.max(-3, Math.min(2, ch1m || d.chDay || 0)), source);
     } else {
       if (d.price > 0) MKT.price = d.price;
       if (d.chDay != null) MKT.ch = Math.max(-3, Math.min(2, d.chDay));
-      MKT.source = d.source === 'closed' ? 'closed' : 'demo';
+      MKT.source = source;
       refreshMarketUI();
       applyDifficulty();
     }
   } catch(e) {
     console.warn('[pollMarket]', e.message);
-    if (MKT.source !== 'live-day' && MKT.source !== 'live-night') simTick();
+    if (MKT.type === 'stock') return;
+    if (MKT.source !== 'live-day-futures' && MKT.source !== 'live-night-futures') simTick();
   }
 }
 
@@ -860,24 +899,22 @@ function refreshMarketUI() {
   // 데이터 소스 표시
   const src = MKT.source;
   const symEl = document.getElementById('mhSym');
-  const typeLabel = MKT.type === 'futures' ? 'KOSPI 200 F'
+  const typeLabel = src === 'spot-fallback' && MKT.type === 'futures' ? 'KOSPI200 Spot Fallback'
+                  : MKT.type === 'futures' ? 'KOSPI 200 F'
                   : MKT.type === 'stock'   ? (MKT.stockName || MKT.stockCode || '종목')
                   : 'KOSPI 200';
-  if      (src==='live-day')   symEl.textContent=typeLabel+' · KIS ↻';
-  else if (src==='live-night') symEl.textContent=typeLabel+' · KIS 야간 ↻';
-  else if (src==='live-nxt')   symEl.textContent=typeLabel+' · NXT ↻';
+  if      (src==='live-day-futures')   symEl.textContent=typeLabel+' · KIS DAY ↻';
+  else if (src==='live-night-futures') symEl.textContent=typeLabel+' · KIS NIGHT ↻';
+  else if (src==='spot-fallback')      symEl.textContent=typeLabel;
   else                         symEl.textContent=typeLabel;
 
-  // Badge  (ALERT/DANGER는 소스 무관 우선)
+  // Source badge
   const bd=document.getElementById('mhBadge');
   const bt=document.getElementById('mhBadgeTxt');
-  if      (ch<=-1.5)          { bd.className='mh-badge bd-alert';  bt.textContent='ALERT'; }
-  else if (ch<=-.3)           { bd.className='mh-badge bd-danger'; bt.textContent='DANGER'; }
-  else if (src==='live-day')  { bd.className='mh-badge bd-live';   bt.textContent='주간 LIVE'; }
-  else if (src==='live-night'){ bd.className='mh-badge bd-night';  bt.textContent='야간 LIVE'; }
-  else if (src==='live-nxt')  { bd.className='mh-badge bd-nxt';    bt.textContent='NXT LIVE'; }
-  else if (MKT.source==='closed'||MKT.session==='closed') { bd.className='mh-badge bd-closed'; bt.textContent='CLOSED'; }
-  else { bd.className='mh-badge bd-demo'; bt.textContent=(MKT.session==='night'?'야간 ':'')+'DEMO'; }
+  if      (src==='live-day-futures')   { bd.className='mh-badge bd-live';   bt.textContent='LIVE KIS DAY FUTURES'; }
+  else if (src==='live-night-futures') { bd.className='mh-badge bd-night';  bt.textContent='LIVE KIS NIGHT FUTURES'; }
+  else if (src==='spot-fallback')      { bd.className='mh-badge bd-nxt';    bt.textContent='SPOT FALLBACK'; }
+  else                                 { bd.className='mh-badge bd-demo';   bt.textContent='DEMO MODE'; }
 
   drawSparkline();
 }
@@ -941,6 +978,8 @@ function loop(ts) {
 // ═══════════════════════════════════════════════
 function setMarketType(type) {
   MKT.type = type;
+  MKT.source = 'demo';
+  MKT.hist = Array.from({ length: 30 }, () => MKT.price);
   document.getElementById('btnTypeFutures').classList.toggle('active', type==='futures');
   document.getElementById('btnTypeSpot').classList.toggle('active', type==='spot');
   document.getElementById('btnTypeStock').classList.toggle('active', type==='stock');
@@ -1049,6 +1088,7 @@ document.getElementById('btnStart').addEventListener('click', async ()=>{
 
   // 종목 모드: 게임 시작 전 현재가 미리 조회
   let _prefetchCh = null;
+  let _prefetchOk = MKT.type !== 'stock';
   if (MKT.type === 'stock') {
     document.getElementById('startNote').textContent = '가격 조회 중...';
     try {
@@ -1060,12 +1100,20 @@ document.getElementById('btnStart').addEventListener('click', async ()=>{
         if (d.price > 0) {
           MKT.price  = d.price;
           MKT.hist   = Array.from({ length: 30 }, () => d.price * (1 + (Math.random() - .5) * .002));
-          MKT.source = d.source || 'closed';
+          MKT.source = normalizeSource(d.source);
+          logMarketData(d, MKT.source);
           if (d.name && !MKT.stockName) MKT.stockName = d.name;
           _prefetchCh = d.chDay ? Math.max(-3, Math.min(2, d.chDay)) : 0;
+          _prefetchOk = d.source === 'stock' && d.price >= 1000;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[stock prefetch]', e.message);
+    }
+    if (!_prefetchOk) {
+      document.getElementById('startNote').textContent = '종목 현재가 조회 실패 — 잠시 후 다시 시도';
+      return;
+    }
   }
 
   hide('ov-start');
