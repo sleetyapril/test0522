@@ -41,7 +41,7 @@ html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'J
 #gc{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
 
 /* ── Overlays ── */
-.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;z-index:20}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;z-index:20;touch-action:manipulation}
 .ov.hidden{display:none}
 #ov-start{background:rgba(5,8,22,.96)}
 #ov-alert{background:rgba(5,8,22,.93)}
@@ -55,10 +55,10 @@ html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'J
 .ov-chg{font-family:'Press Start 2P',monospace;font-size:26px;color:#EF4444}
 .ov-score{font-family:'Press Start 2P',monospace;font-size:11px;color:#FACC15}
 
-.btn-g{padding:13px 26px;background:linear-gradient(180deg,#22C55E,#16A34A);color:#031d10;font-family:'Press Start 2P',monospace;font-size:8px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 0 0 1px rgba(34,197,94,.5),0 8px 28px -8px rgba(34,197,94,.5);letter-spacing:.04em;transition:transform .15s,box-shadow .2s}
-.btn-g:active{transform:translateY(1px)}
-.btn-r{padding:12px 24px;background:linear-gradient(180deg,rgba(239,68,68,.25),rgba(239,68,68,.1));color:#fecaca;font-family:'Press Start 2P',monospace;font-size:8px;border:1px solid rgba(239,68,68,.6);border-radius:8px;cursor:pointer;letter-spacing:.04em;transition:background .2s}
-.btn-r:active{background:rgba(239,68,68,.35)}
+.btn-g{padding:14px 32px;min-width:160px;min-height:48px;background:linear-gradient(180deg,#22C55E,#16A34A);color:#031d10;font-family:'Press Start 2P',monospace;font-size:8px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 0 0 1px rgba(34,197,94,.5),0 8px 28px -8px rgba(34,197,94,.5);letter-spacing:.04em;transition:transform .15s,box-shadow .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-g:active{transform:translateY(1px);opacity:.85}
+.btn-r{padding:13px 28px;min-width:160px;min-height:48px;background:linear-gradient(180deg,rgba(239,68,68,.25),rgba(239,68,68,.1));color:#fecaca;font-family:'Press Start 2P',monospace;font-size:8px;border:1px solid rgba(239,68,68,.6);border-radius:8px;cursor:pointer;letter-spacing:.04em;transition:background .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-r:active{background:rgba(239,68,68,.35);opacity:.85}
 
 /* ── Status bar ── */
 #sbar{flex:none;display:flex;padding:7px 8px;gap:5px;background:rgba(11,16,32,.95);border-top:1px solid rgba(255,255,255,.08)}
@@ -419,14 +419,14 @@ function applyDifficulty() {
 let drag = null;
 
 stage.addEventListener('touchstart', e=>{
+  if (gstate!=='playing') return;  // 오버레이 버튼 탭은 막지 않음
   e.preventDefault();
-  if (gstate!=='playing') return;
   const t = e.touches[0];
   drag = { startX: t.clientX, playerX: player.x };
 },{passive:false});
 stage.addEventListener('touchmove', e=>{
-  e.preventDefault();
   if (gstate!=='playing'||!drag) return;
+  e.preventDefault();  // 게임 중 스크롤만 차단
   const dx = e.touches[0].clientX - drag.startX;
   player.x = clamp(drag.playerX + dx, player.w/2, W - player.w/2);
 },{passive:false});

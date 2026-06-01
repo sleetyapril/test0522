@@ -138,9 +138,12 @@ function calc1mChange(cur) {
 }
 
 // ═══════════════════════════════════════════════
-// ① KIS WebSocket (실시간)
+// ① KIS — REST 선물 폴링 + WebSocket (실시간)
 // ═══════════════════════════════════════════════
-const kis = { ws: null, connected: false, reconnTimer: null };
+const kis = {
+  ws: null, connected: false, reconnTimer: null,
+  accessToken: '', tokenExp: 0,   // REST API용 토큰
+};
 
 async function kisGetApprovalKey() {
   // WebSocket 전용 approval_key — /oauth2/Approval 엔드포인트
@@ -154,6 +157,53 @@ async function kisGetApprovalKey() {
   if (!d.approval_key) throw new Error('approval_key 없음: ' + JSON.stringify(d));
   console.log('[KIS] approval_key 발급 완료');
   return d.approval_key;
+}
+
+// ── KIS REST 액세스 토큰 (선물 폴링용) ──
+async function kisGetAccessToken() {
+  const res = await httpsReq('POST', `${KIS_REST}/oauth2/tokenP`, {
+    grant_type: 'client_credentials',
+    appkey:     APP_KEY,
+    appsecret:  APP_SECRET,   // ← tokenP는 appsecret
+  });
+  if (res.status !== 200) throw new Error('HTTP ' + res.status);
+  const d = JSON.parse(res.body);
+  if (!d.access_token) throw new Error('access_token 없음: ' + res.body.slice(0, 200));
+  kis.accessToken = d.access_token;
+  kis.tokenExp    = Date.now() + (d.expires_in - 600) * 1000; // 만료 10분 전 갱신
+  console.log('[KIS REST] 액세스 토큰 발급  expires_in=' + d.expires_in + 's');
+}
+
+// ── KIS REST: KOSPI 200 선물 현재가 조회 ──
+async function kisFetchFutures() {
+  if (!kis.accessToken || Date.now() >= kis.tokenExp) await kisGetAccessToken();
+
+  const code    = getNearMonthCode();
+  const session = getSession();
+  // 주간: FHKIF03010100 / 야간: FHKIF03020100
+  const trId    = session === 'night' ? 'FHKIF03020100' : 'FHKIF03010100';
+
+  const res = await httpsReq('GET',
+    `${KIS_REST}/uapi/domestic-futureoption/v1/quotations/inquire-price?FUT_CODE=${code}`,
+    null, {
+      authorization: `Bearer ${kis.accessToken}`,
+      appkey:        APP_KEY,
+      appsecret:     APP_SECRET,
+      'tr_id':       trId,
+      'Content-Type': 'application/json; charset=utf-8',
+    }
+  );
+  if (res.status !== 200) throw new Error('HTTP ' + res.status);
+  const d = JSON.parse(res.body);
+  if (d.rt_cd !== '0') throw new Error(`KIS: ${d.msg1} (rt_cd=${d.rt_cd})`);
+
+  const o        = d.output;
+  const price    = parseFloat(o.futs_prpr);   // 선물 현재가
+  const chDay    = parseFloat(o.prdy_ctrt);   // 전일 대비율 %
+  const prevClose = parseFloat(o.futs_bspr) || (price - parseFloat(o.prdy_vrss));
+
+  if (isNaN(price) || price < 100) throw new Error('유효하지 않은 선물가: ' + o.futs_prpr);
+  return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose };
 }
 
 async function kisConnect() {
@@ -355,48 +405,67 @@ function simStep() {
 }
 
 // ═══════════════════════════════════════════════
-// 폴링 루프  네이버(기본) → Yahoo(fallback)
+// 폴링 루프  KIS REST(선물) → 네이버 → Yahoo → 시뮬
 // ═══════════════════════════════════════════════
-let nextPollMs = 7_000;
+let nextPollMs = 5_000;
 let failStreak = 0;
 
 async function poll() {
-  if (kis.connected) return;
+  if (kis.connected) return; // WebSocket 연결 중이면 폴링 불필요
 
   cache.session = getSession();
 
-  // 장 마감 → source만 업데이트
   if (cache.session === 'closed') {
     if (cache.source !== 'closed' && cache.source !== 'demo') {
       cache.source = 'closed';
       console.log('[KOSPI] 장 마감');
     }
-    nextPollMs = 60_000; // 장외엔 1분마다 확인
+    nextPollMs = 60_000;
     return;
   }
 
-  let price = null, chDay = 0;
+  let price = null, chDay = 0, prevClose = cache.prevClose, dataSource = '';
 
-  // ── 1순위: 네이버 금융 ──
-  try {
-    const d = await fetchNaver();
-    price      = d.price;
-    chDay      = d.chDay;
-    nextPollMs = d.pollingInterval; // Naver 권장값 (보통 7000ms)
-    failStreak = 0;
-  } catch (e) {
-    console.warn('[Naver]', e.message);
+  // ── 1순위: KIS REST — 실제 선물 가격 ──
+  if (APP_KEY) {
+    try {
+      const d  = await kisFetchFutures();
+      price      = d.price;
+      chDay      = d.chDay;
+      prevClose  = d.prevClose || prevClose;
+      nextPollMs = 5_000;   // 5초 폴링
+      failStreak = 0;
+      dataSource = 'KIS';
+    } catch (e) {
+      console.warn('[KIS REST]', e.message);
+    }
   }
 
-  // ── 2순위: Yahoo Finance ──
+  // ── 2순위: 네이버 금융 — 현물 지수 ──
+  if (price === null) {
+    try {
+      const d  = await fetchNaver();
+      price      = d.price;
+      chDay      = d.chDay;
+      nextPollMs = d.pollingInterval;
+      failStreak = 0;
+      dataSource = 'Naver';
+    } catch (e) {
+      console.warn('[Naver]', e.message);
+    }
+  }
+
+  // ── 3순위: Yahoo Finance ──
   if (price === null) {
     for (const fn of [yfFetch, yfFetchV7]) {
       try {
-        const d = await fn();
+        const d  = await fn();
         price      = d.price;
         chDay      = d.chDay;
+        prevClose  = d.prevClose || prevClose;
         nextPollMs = 10_000;
         failStreak = 0;
+        dataSource = fn.name;
         break;
       } catch (e) {
         console.warn(`[YF] ${fn.name}:`, e.message);
@@ -406,18 +475,19 @@ async function poll() {
 
   if (price !== null) {
     pushPriceWindow(price);
-    cache.price   = price;
-    cache.ch1m    = clamp(calc1mChange(price), -3, 3);
-    cache.chDay   = clamp(chDay, -5, 5);
-    cache.source  = cache.session; // 'day' | 'night'
-    cache.ts      = Date.now();
-    console.log(`[KOSPI] ${price.toFixed(2)}  1m:${cache.ch1m.toFixed(3)}%  day:${chDay.toFixed(3)}%`);
+    cache.price    = price;
+    cache.ch1m     = clamp(calc1mChange(price), -3, 3);
+    cache.chDay    = clamp(chDay, -5, 5);
+    cache.prevClose = prevClose;
+    cache.source   = cache.session;
+    cache.ts       = Date.now();
+    console.log(`[KOSPI|${dataSource}] ${price.toFixed(2)}  1m:${cache.ch1m.toFixed(3)}%  day:${chDay.toFixed(3)}%`);
   } else {
-    // ── 3순위: 시뮬레이션 ──
+    // ── 4순위: 시뮬레이션 ──
     failStreak++;
     simStep();
     cache.source = 'demo';
-    nextPollMs   = Math.min(7_000 * Math.pow(2, failStreak), 120_000);
+    nextPollMs   = Math.min(5_000 * Math.pow(2, failStreak), 120_000);
     console.warn(`[KOSPI] 모든 소스 실패 (${failStreak}회) — ${nextPollMs / 1000}s 후 재시도`);
   }
 }
@@ -436,10 +506,16 @@ function schedulePoll() {
   cache.session      = getSession();
 
   if (APP_KEY) {
-    console.log('[KIS] API 키 감지 → KIS WebSocket 연결 시도');
-    await kisConnect();
-    // 5초 후에도 미연결이면 네이버 폴링 병행
-    setTimeout(() => { if (!kis.connected) schedulePoll(); }, 5_000);
+    console.log('[KIS] API 키 감지 → KIS REST 선물 폴링 시작');
+    try {
+      await kisGetAccessToken();
+    } catch (e) {
+      console.error('[KIS] 토큰 발급 실패:', e.message);
+    }
+    schedulePoll();
+
+    // WebSocket도 병행 시도 (포트 21000이 열린 환경에서 자동 활성화)
+    kisConnect().catch(() => {});
   } else {
     console.log('[INFO] 네이버 금융 폴링 시작 (API 키 불필요)');
     schedulePoll();
@@ -462,6 +538,7 @@ app.get('/api/market', (_req, res) => {
     contractCode:  cache.contractCode,
     ts:            cache.ts,
     age:           Math.floor((Date.now() - cache.ts) / 1000),
+    kisRest:       !!kis.accessToken && Date.now() < kis.tokenExp,
     kisLive:       kis.connected,
   });
 });
