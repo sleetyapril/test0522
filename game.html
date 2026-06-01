@@ -234,6 +234,63 @@ new ResizeObserver(resize).observe(stage);
 resize();
 
 // ═══════════════════════════════════════════════
+// 인기 종목 로컬 목록 (API 없이 즉시 검색)
+// ═══════════════════════════════════════════════
+const STOCKS = [
+  {n:'삼성전자',c:'005930',m:'KOSPI'},{n:'SK하이닉스',c:'000660',m:'KOSPI'},
+  {n:'삼성바이오로직스',c:'207940',m:'KOSPI'},{n:'LG에너지솔루션',c:'373220',m:'KOSPI'},
+  {n:'현대차',c:'005380',m:'KOSPI'},{n:'POSCO홀딩스',c:'005490',m:'KOSPI'},
+  {n:'삼성SDI',c:'006400',m:'KOSPI'},{n:'LG화학',c:'051910',m:'KOSPI'},
+  {n:'셀트리온',c:'068270',m:'KOSPI'},{n:'KB금융',c:'105560',m:'KOSPI'},
+  {n:'신한지주',c:'055550',m:'KOSPI'},{n:'카카오',c:'035720',m:'KOSPI'},
+  {n:'NAVER',c:'035420',m:'KOSPI'},{n:'SK이노베이션',c:'096770',m:'KOSPI'},
+  {n:'기아',c:'000270',m:'KOSPI'},{n:'SK텔레콤',c:'017670',m:'KOSPI'},
+  {n:'LG전자',c:'066570',m:'KOSPI'},{n:'현대모비스',c:'012330',m:'KOSPI'},
+  {n:'하나금융지주',c:'086790',m:'KOSPI'},{n:'우리금융지주',c:'316140',m:'KOSPI'},
+  {n:'카카오뱅크',c:'323410',m:'KOSPI'},{n:'삼성생명',c:'032830',m:'KOSPI'},
+  {n:'LG',c:'003550',m:'KOSPI'},{n:'KT&G',c:'033780',m:'KOSPI'},
+  {n:'SK',c:'034730',m:'KOSPI'},{n:'삼성물산',c:'028260',m:'KOSPI'},
+  {n:'삼성전기',c:'009150',m:'KOSPI'},{n:'삼성화재',c:'000810',m:'KOSPI'},
+  {n:'삼성중공업',c:'010140',m:'KOSPI'},{n:'삼성엔지니어링',c:'028050',m:'KOSPI'},
+  {n:'포스코퓨처엠',c:'003670',m:'KOSPI'},{n:'포스코인터내셔널',c:'047050',m:'KOSPI'},
+  {n:'포스코DX',c:'022100',m:'KOSPI'},{n:'LG이노텍',c:'011070',m:'KOSPI'},
+  {n:'고려아연',c:'010130',m:'KOSPI'},{n:'현대제철',c:'004020',m:'KOSPI'},
+  {n:'한화에어로스페이스',c:'012450',m:'KOSPI'},{n:'한화솔루션',c:'009830',m:'KOSPI'},
+  {n:'두산에너빌리티',c:'034020',m:'KOSPI'},{n:'HD현대',c:'267250',m:'KOSPI'},
+  {n:'HD현대중공업',c:'329180',m:'KOSPI'},{n:'현대글로비스',c:'086280',m:'KOSPI'},
+  {n:'에코프로비엠',c:'247540',m:'KOSPI'},{n:'크래프톤',c:'259960',m:'KOSPI'},
+  {n:'카카오페이',c:'377300',m:'KOSPI'},{n:'엔씨소프트',c:'036570',m:'KOSPI'},
+  {n:'넷마블',c:'251270',m:'KOSPI'},{n:'하이브',c:'352820',m:'KOSPI'},
+  {n:'HMM',c:'011200',m:'KOSPI'},{n:'한국조선해양',c:'009540',m:'KOSPI'},
+  {n:'SK스퀘어',c:'402340',m:'KOSPI'},{n:'KT',c:'030200',m:'KOSPI'},
+  {n:'한국전력',c:'015760',m:'KOSPI'},{n:'대한항공',c:'003490',m:'KOSPI'},
+  {n:'롯데케미칼',c:'011170',m:'KOSPI'},{n:'현대건설',c:'000720',m:'KOSPI'},
+  {n:'CJ제일제당',c:'097950',m:'KOSPI'},{n:'기업은행',c:'024110',m:'KOSPI'},
+  {n:'메리츠금융지주',c:'138040',m:'KOSPI'},{n:'S-OIL',c:'010950',m:'KOSPI'},
+  {n:'두산밥캣',c:'241560',m:'KOSPI'},{n:'한국타이어앤테크놀로지',c:'161390',m:'KOSPI'},
+  {n:'SK바이오팜',c:'326030',m:'KOSPI'},{n:'한미반도체',c:'042700',m:'KOSPI'},
+  {n:'리노공업',c:'058470',m:'KOSPI'},{n:'BGF리테일',c:'282330',m:'KOSPI'},
+  {n:'현대오토에버',c:'307950',m:'KOSPI'},{n:'LS ELECTRIC',c:'010120',m:'KOSPI'},
+  {n:'GS건설',c:'006360',m:'KOSPI'},{n:'현대위아',c:'011210',m:'KOSPI'},
+  // KOSDAQ
+  {n:'HLB',c:'028300',m:'KOSDAQ'},{n:'알테오젠',c:'196170',m:'KOSDAQ'},
+  {n:'셀트리온제약',c:'068760',m:'KOSDAQ'},{n:'에코프로',c:'086520',m:'KOSDAQ'},
+  {n:'리가켐바이오사이언스',c:'141080',m:'KOSDAQ'},{n:'클래시스',c:'214150',m:'KOSDAQ'},
+  {n:'카카오게임즈',c:'293490',m:'KOSDAQ'},{n:'위메이드',c:'112040',m:'KOSDAQ'},
+  {n:'펄어비스',c:'263750',m:'KOSDAQ'},{n:'에스엠',c:'041510',m:'KOSDAQ'},
+  {n:'JYP Ent',c:'035900',m:'KOSDAQ'},{n:'YG엔터테인먼트',c:'122870',m:'KOSDAQ'},
+  {n:'셀트리온헬스케어',c:'091990',m:'KOSDAQ'},{n:'레인보우로보틱스',c:'277810',m:'KOSDAQ'},
+];
+
+function searchLocal(q) {
+  const kw = q.toLowerCase().replace(/\s+/g, '');
+  return STOCKS.filter(s =>
+    s.n.toLowerCase().replace(/\s+/g, '').includes(kw) ||
+    s.c.startsWith(q)
+  ).slice(0, 6).map(s => ({ name: s.n, code: s.c, market: s.m }));
+}
+
+// ═══════════════════════════════════════════════
 // AUDIO
 // ═══════════════════════════════════════════════
 let _ac = null;
@@ -915,18 +972,22 @@ document.getElementById('stockInput').addEventListener('keydown', e => {
 
 // autoSelect=true 이면 첫 번째 결과를 즉시 선택 (PLAY·Enter 경유)
 async function fetchStockSearch(q, autoSelect = false) {
+  // 1순위: 로컬 내장 목록 (API 불필요, 즉시 응답)
+  const local = searchLocal(q);
+  if (local.length > 0) {
+    if (autoSelect) { selectStock(local[0].code, local[0].name); return true; }
+    renderStockDrop(local);
+    return true;
+  }
+  // 2순위: 서버 API (내장 목록에 없는 종목)
   try {
-    const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+    const r = await fetch('/api/search?q=' + encodeURIComponent(q), { signal: AbortSignal.timeout(5000) });
     if (!r.ok) return false;
     const d = await r.json();
     const results = d.results || [];
-    if (autoSelect && results.length > 0) {
-      selectStock(results[0].code, results[0].name);
-      return true;
-    } else {
-      renderStockDrop(results);
-      return results.length > 0;
-    }
+    if (autoSelect && results.length > 0) { selectStock(results[0].code, results[0].name); return true; }
+    renderStockDrop(results);
+    return results.length > 0;
   } catch(_) { return false; }
 }
 
