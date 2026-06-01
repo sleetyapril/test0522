@@ -903,19 +903,28 @@ document.getElementById('stockInput').addEventListener('input', e => {
   if (!q) { document.getElementById('stockDrop').style.display='none'; return; }
   _searchTimer = setTimeout(() => fetchStockSearch(q), 320);
 });
-// 6자리 숫자 입력 후 Enter → 코드 직접 사용 (검색 API 없이도 동작)
+// Enter 키: 6자리 코드 → 직접 선택 / 이름 → 검색 후 첫 결과 자동 선택
 document.getElementById('stockInput').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
+  e.preventDefault();
   const v = e.target.value.trim();
+  if (!v) return;
   if (/^\d{6}$/.test(v)) selectStock(v, v);
+  else fetchStockSearch(v, true);
 });
 
-async function fetchStockSearch(q) {
+// autoSelect=true 이면 첫 번째 결과를 즉시 선택 (PLAY·Enter 경유)
+async function fetchStockSearch(q, autoSelect = false) {
   try {
     const r = await fetch('/api/search?q=' + encodeURIComponent(q));
     if (!r.ok) return;
     const d = await r.json();
-    renderStockDrop(d.results || []);
+    const results = d.results || [];
+    if (autoSelect && results.length > 0) {
+      selectStock(results[0].code, results[0].name);
+    } else {
+      renderStockDrop(results);
+    }
   } catch(_) {}
 }
 
@@ -945,11 +954,18 @@ function selectStock(code, name) {
   document.getElementById('startNote').textContent = name + ' (' + code + ')';
 }
 
-document.getElementById('btnStart').addEventListener('click', ()=>{
+document.getElementById('btnStart').addEventListener('click', async ()=>{
   if (MKT.type === 'stock' && !MKT.stockCode) {
-    document.getElementById('startNote').textContent = '종목을 먼저 선택하세요';
-    document.getElementById('stockInput').focus();
-    return;
+    const q = document.getElementById('stockInput').value.trim();
+    if (/^\d{6}$/.test(q)) {
+      selectStock(q, q);                // 코드 직접 입력
+    } else if (q) {
+      await fetchStockSearch(q, true);  // 이름 → 검색 후 첫 결과 선택
+    }
+    if (!MKT.stockCode) {
+      document.getElementById('startNote').textContent = '종목명 입력 후 목록에서 선택하세요';
+      return;
+    }
   }
   hide('ov-start');
   initGame(); gstate='playing';
