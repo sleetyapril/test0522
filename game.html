@@ -29,6 +29,8 @@ html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'J
 .bd-night .mh-dot{background:#C084FC;box-shadow:0 0 6px #C084FC}
 .bd-closed{border-color:rgba(107,114,128,.4);color:#9CA3AF;background:rgba(107,114,128,.06)}
 .bd-closed .mh-dot{background:#6B7280;box-shadow:none;animation:none}
+.bd-nxt{border-color:rgba(251,191,36,.6);color:#fde68a;background:rgba(251,191,36,.12)}
+.bd-nxt .mh-dot{background:#FBB724;box-shadow:0 0 6px #FBB724}
 @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
 #sparkline{width:72px;height:30px;flex:none}
 .mh-r{text-align:right;flex:none}
@@ -403,11 +405,12 @@ async function pollMarket() {
     MKT.session = d.session;
     if (d.name && MKT.type === 'stock' && !MKT.stockName) MKT.stockName = d.name;
 
-    if (d.source === 'day' || d.source === 'night') {
+    if (d.source === 'day' || d.source === 'night' || d.source === 'nxt') {
       _pushWin(d.price);
       const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
-      applyData(d.price, Math.max(-3, Math.min(2, ch1m)),
-                d.source === 'day' ? 'live-day' : 'live-night');
+      const src  = d.source === 'day' ? 'live-day'
+                 : d.source === 'nxt' ? 'live-nxt' : 'live-night';
+      applyData(d.price, Math.max(-3, Math.min(2, ch1m)), src);
     } else {
       if (d.price > 0) MKT.price = d.price;
       if (d.chDay != null) MKT.ch = Math.max(-3, Math.min(2, d.chDay));
@@ -860,8 +863,9 @@ function refreshMarketUI() {
   const typeLabel = MKT.type === 'futures' ? 'KOSPI 200 F'
                   : MKT.type === 'stock'   ? (MKT.stockName || MKT.stockCode || '종목')
                   : 'KOSPI 200';
-  if (src==='live-day')        symEl.textContent=typeLabel+' · KIS ↻';
+  if      (src==='live-day')   symEl.textContent=typeLabel+' · KIS ↻';
   else if (src==='live-night') symEl.textContent=typeLabel+' · KIS 야간 ↻';
+  else if (src==='live-nxt')   symEl.textContent=typeLabel+' · NXT ↻';
   else                         symEl.textContent=typeLabel;
 
   // Badge  (ALERT/DANGER는 소스 무관 우선)
@@ -871,6 +875,7 @@ function refreshMarketUI() {
   else if (ch<=-.3)           { bd.className='mh-badge bd-danger'; bt.textContent='DANGER'; }
   else if (src==='live-day')  { bd.className='mh-badge bd-live';   bt.textContent='주간 LIVE'; }
   else if (src==='live-night'){ bd.className='mh-badge bd-night';  bt.textContent='야간 LIVE'; }
+  else if (src==='live-nxt')  { bd.className='mh-badge bd-nxt';    bt.textContent='NXT LIVE'; }
   else if (MKT.source==='closed'||MKT.session==='closed') { bd.className='mh-badge bd-closed'; bt.textContent='CLOSED'; }
   else { bd.className='mh-badge bd-demo'; bt.textContent=(MKT.session==='night'?'야간 ':'')+'DEMO'; }
 

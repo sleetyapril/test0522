@@ -161,7 +161,7 @@ async function kisStockPrice(appKey, appSecret, code) {
   return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose, name: o.hts_kor_isnm || code };
 }
 
-// ── Naver: 국내 주식 현재가 (KIS fallback) ──
+// ── Naver: 국내 주식 현재가 + NXT(시간외) 지원 ──
 async function fetchNaverStock(code) {
   const r = await httpsReq('GET',
     `https://polling.finance.naver.com/api/realtime/domestic/stock/${code}`,
@@ -171,16 +171,32 @@ async function fetchNaverStock(code) {
   const d   = JSON.parse(r.body);
   const row = d.datas?.[0];
   if (!row) throw new Error('Naver 주식 데이터 없음');
-  // closePriceRaw는 쉼표 없는 숫자 문자열
-  const price  = parseFloat(row.closePriceRaw ?? row.closePrice);
-  const chDay  = parseFloat(row.fluctuationsRatioRaw ?? row.fluctuationsRatio ?? 0);
-  const absChg = parseFloat(String(row.compareToPreviousClosePriceRaw ?? row.compareToPreviousClosePrice ?? '0').replace(/,/g, ''));
-  if (isNaN(price) || price < 1) throw new Error('유효하지 않은 Naver 주식 가격');
+
+  const regularOpen = row.marketStatus === 'OPEN';
+  const over        = row.overMarketPriceInfo;
+  const nxtOpen     = !regularOpen && over?.overMarketStatus === 'OPEN' && over.overPrice;
+
+  let price, chDay, prevClose;
+  if (nxtOpen) {
+    // 정규장 마감 후 시간외(NXT) 가격 사용
+    price    = parseFloat(String(over.overPrice).replace(/,/g, ''));
+    chDay    = parseFloat(over.fluctuationsRatio ?? 0);
+    const d2 = parseFloat(String(over.compareToPreviousClosePrice ?? '0').replace(/,/g, ''));
+    prevClose = Math.round(price - d2);
+  } else {
+    price    = parseFloat(row.closePriceRaw ?? row.closePrice);
+    chDay    = parseFloat(row.fluctuationsRatioRaw ?? row.fluctuationsRatio ?? 0);
+    const d2 = parseFloat(String(row.compareToPreviousClosePriceRaw ?? '0').replace(/,/g, ''));
+    prevClose = Math.round(price - d2);
+  }
+
+  if (isNaN(price) || price < 1) throw new Error('유효하지 않은 주식 가격');
   return {
     price,
     chDay:    isNaN(chDay) ? 0 : chDay,
-    prevClose: isNaN(absChg) ? price : Math.round(price - absChg),
-    isOpen:   row.marketStatus === 'OPEN',
+    prevClose: isNaN(prevClose) ? price : prevClose,
+    isOpen:   regularOpen,
+    nxt:      !!nxtOpen,
     name:     row.stockName || code,
     pollingInterval: d.pollingInterval || 5000,
   };
@@ -253,7 +269,7 @@ module.exports = async function handler(req, res) {
         ch1m:     0,
         chDay:    d.chDay,
         session,
-        source:   d.isOpen ? session : 'closed',
+        source:   d.nxt ? 'nxt' : (d.isOpen ? session : 'closed'),
         prevClose: d.prevClose,
         name:     d.name,
         pollingInterval: d.pollingInterval,
