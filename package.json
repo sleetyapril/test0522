@@ -1,0 +1,30 @@
+{
+  "name": "test0522",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sleetyapril/test0522.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sleetyapril/test0522/issues"
+  },
+  "homepage": "https://github.com/sleetyapril/test0522#readme",
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "ws": "^8.21.0"
+  }
+}

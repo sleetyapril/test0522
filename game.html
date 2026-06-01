@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>KOSPI Defender — Play</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'JetBrains Mono',monospace;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:480px;margin:0 auto;position:relative}
+
+/* ── Market Header ── */
+#mkt{flex:none;padding:8px 14px 7px;background:rgba(11,16,32,.95);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.mh-l{flex:1;min-width:0}
+.mh-sym{font-family:'Press Start 2P',monospace;font-size:6.5px;color:#6B7280;letter-spacing:.06em}
+.mh-price{font-family:'Press Start 2P',monospace;font-size:13px;color:#fff;margin-top:3px}
+.mh-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:2px 7px;border-radius:999px;font-family:'Press Start 2P',monospace;font-size:5.5px;letter-spacing:.05em;border:1px solid}
+.bd-demo{border-color:rgba(96,165,250,.5);color:#bfdbfe;background:rgba(96,165,250,.1)}
+.bd-danger{border-color:rgba(239,68,68,.6);color:#fecaca;background:rgba(239,68,68,.12)}
+.bd-alert{border-color:rgba(239,68,68,.9);color:#fff;background:rgba(239,68,68,.25)}
+.mh-dot{width:5px;height:5px;border-radius:50%;animation:blip 1.4s ease-in-out infinite}
+.bd-demo .mh-dot{background:#60A5FA;box-shadow:0 0 5px #60A5FA}
+.bd-danger .mh-dot{background:#EF4444;box-shadow:0 0 5px #EF4444}
+.bd-alert .mh-dot{background:#EF4444;box-shadow:0 0 8px #EF4444;animation:blip .6s ease-in-out infinite}
+.bd-live{border-color:rgba(34,197,94,.6);color:#bbf7d0;background:rgba(34,197,94,.12)}
+.bd-live .mh-dot{background:#22C55E;box-shadow:0 0 6px #22C55E}
+.bd-night{border-color:rgba(192,132,252,.6);color:#e9d5ff;background:rgba(192,132,252,.12)}
+.bd-night .mh-dot{background:#C084FC;box-shadow:0 0 6px #C084FC}
+.bd-closed{border-color:rgba(107,114,128,.4);color:#9CA3AF;background:rgba(107,114,128,.06)}
+.bd-closed .mh-dot{background:#6B7280;box-shadow:none;animation:none}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+#sparkline{width:72px;height:30px;flex:none}
+.mh-r{text-align:right;flex:none}
+.mh-chg{font-family:'Press Start 2P',monospace;font-size:10px;font-weight:700}
+.up{color:#22C55E}.dn{color:#EF4444}.flat{color:#9CA3AF}
+.mh-sub{font-size:9.5px;color:#6B7280;margin-top:2px}
+
+/* ── Stage ── */
+#stage{flex:1;position:relative;overflow:hidden;background:#050816}
+#gc{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* ── Overlays ── */
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;z-index:20}
+.ov.hidden{display:none}
+#ov-start{background:rgba(5,8,22,.96)}
+#ov-alert{background:rgba(5,8,22,.93)}
+#ov-go{background:rgba(5,8,22,.95)}
+
+.ov-title{font-family:'Press Start 2P',monospace;line-height:1.7;letter-spacing:.04em}
+.green-title{font-size:13px;color:#22C55E;text-shadow:0 0 18px rgba(34,197,94,.5)}
+.red-title{font-size:13px;color:#EF4444;text-shadow:0 0 18px rgba(239,68,68,.5);animation:pulse-r .9s ease-in-out infinite}
+@keyframes pulse-r{0%,100%{text-shadow:0 0 18px rgba(239,68,68,.5)}50%{text-shadow:0 0 36px rgba(239,68,68,1)}}
+.ov-sub{font-size:11px;color:#6B7280;line-height:1.75;max-width:280px}
+.ov-chg{font-family:'Press Start 2P',monospace;font-size:26px;color:#EF4444}
+.ov-score{font-family:'Press Start 2P',monospace;font-size:11px;color:#FACC15}
+
+.btn-g{padding:13px 26px;background:linear-gradient(180deg,#22C55E,#16A34A);color:#031d10;font-family:'Press Start 2P',monospace;font-size:8px;border:none;border-radius:8px;cursor:pointer;box-shadow:0 0 0 1px rgba(34,197,94,.5),0 8px 28px -8px rgba(34,197,94,.5);letter-spacing:.04em;transition:transform .15s,box-shadow .2s}
+.btn-g:active{transform:translateY(1px)}
+.btn-r{padding:12px 24px;background:linear-gradient(180deg,rgba(239,68,68,.25),rgba(239,68,68,.1));color:#fecaca;font-family:'Press Start 2P',monospace;font-size:8px;border:1px solid rgba(239,68,68,.6);border-radius:8px;cursor:pointer;letter-spacing:.04em;transition:background .2s}
+.btn-r:active{background:rgba(239,68,68,.35)}
+
+/* ── Status bar ── */
+#sbar{flex:none;display:flex;padding:7px 8px;gap:5px;background:rgba(11,16,32,.95);border-top:1px solid rgba(255,255,255,.08)}
+.sc{flex:1;background:rgba(17,24,39,.8);border-radius:7px;padding:6px 7px;border:1px solid rgba(255,255,255,.05)}
+.sc-lbl{font-family:'Press Start 2P',monospace;font-size:5.5px;color:#6B7280;letter-spacing:.08em}
+.sc-val{font-family:'Press Start 2P',monospace;font-size:8.5px;margin-top:3px}
+.sc-bar{height:3px;background:rgba(255,255,255,.07);border-radius:99px;margin-top:4px;overflow:hidden}
+.sc-fill{height:100%;border-radius:99px;transition:width .5s ease,background .5s ease}
+.sc.warn .sc-val{color:#EF4444}
+.sc.good .sc-val{color:#22C55E}
+.sc.blue .sc-val{color:#60A5FA}
+.sc.neutral .sc-val{color:#9CA3AF}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="mkt">
+    <div class="mh-l">
+      <div class="mh-sym" id="mhSym">KOSPI 200</div>
+      <div class="mh-price" id="mhPrice">342.18</div>
+      <div class="mh-badge bd-demo" id="mhBadge"><span class="mh-dot"></span><span id="mhBadgeTxt">DEMO</span></div>
+    </div>
+    <svg id="sparkline" viewBox="0 0 72 30" preserveAspectRatio="none"></svg>
+    <div class="mh-r">
+      <div class="mh-chg flat" id="mhChg">±0.00%</div>
+      <div class="mh-sub" id="mhSub">1m ±0.00%</div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="gc"></canvas>
+
+    <div class="ov" id="ov-start">
+      <div class="ov-title green-title">KOSPI<br>DEFENDER</div>
+      <div class="ov-sub">시장이 흔들리면 적들이 공격합니다<br><br>드래그로 이동 · 자동 발사<br>시장 하락 = 적 강화<br>시장 상승 = 탄막 강화</div>
+      <button class="btn-g" id="btnStart">▶ PLAY</button>
+      <div style="font-family:'Press Start 2P',monospace;font-size:5.5px;color:#4B5563;margin-top:4px">DEMO MODE · 시뮬레이션 데이터</div>
+    </div>
+
+    <div class="ov hidden" id="ov-alert">
+      <div class="ov-title red-title">! MARKET<br>ALERT !</div>
+      <div class="ov-chg" id="ovAlertChg">−1.62%</div>
+      <div class="ov-sub">시장이 급변했습니다<br>관심종목을 확인하세요</div>
+      <button class="btn-r" id="btnAlert">관심종목 확인 →</button>
+    </div>
+
+    <div class="ov hidden" id="ov-go">
+      <div class="ov-title red-title">GAME<br>OVER</div>
+      <div class="ov-score" id="ovScore">SCORE 000000</div>
+      <div class="ov-sub" id="ovGoMsg">시장이 위험해졌습니다<br>관심종목을 확인하세요</div>
+      <button class="btn-g" id="btnRetry">▶ RETRY</button>
+    </div>
+  </div>
+
+  <div id="sbar">
+    <div class="sc neutral" id="scMkt">
+      <div class="sc-lbl">MARKET</div>
+      <div class="sc-val" id="scMktV">±0.00%</div>
+      <div class="sc-bar"><div class="sc-fill" id="scMktF" style="width:0%"></div></div>
+    </div>
+    <div class="sc blue" id="scBul">
+      <div class="sc-lbl">BULLET</div>
+      <div class="sc-val" id="scBulV">LV 1</div>
+      <div class="sc-bar"><div class="sc-fill" id="scBulF" style="width:33%;background:#60A5FA"></div></div>
+    </div>
+    <div class="sc neutral" id="scWrn">
+      <div class="sc-lbl">WARNING</div>
+      <div class="sc-val" id="scWrnV">LV 0</div>
+      <div class="sc-bar"><div class="sc-fill" id="scWrnF" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// SPRITES  (pixel art as 2-D bit arrays)
+// ═══════════════════════════════════════════════
+const SPR = {
+  player:[
+    [0,0,1,1,0,0],
+    [0,1,1,1,1,0],
+    [1,1,1,1,1,1],
+    [1,0,0,0,0,1],
+  ],
+  eA:[ // blue – row 0 (strongest)
+    [0,1,0,0,1,0],
+    [1,1,1,1,1,1],
+    [1,0,1,1,0,1],
+    [1,1,1,1,1,1],
+    [0,1,0,0,1,0],
+    [1,0,0,0,0,1],
+  ],
+  eB:[ // teal – row 1
+    [0,0,1,1,0,0],
+    [0,1,1,1,1,0],
+    [1,1,0,0,1,1],
+    [1,1,0,0,1,1],
+    [0,1,1,1,1,0],
+    [0,0,1,1,0,0],
+  ],
+  eC:[ // yellow – row 2
+    [1,0,0,0,0,1],
+    [1,1,0,0,1,1],
+    [0,1,1,1,1,0],
+    [0,1,0,0,1,0],
+    [1,1,0,0,1,1],
+    [1,0,0,0,0,1],
+  ],
+  eD:[ // purple – row 3 (weakest)
+    [0,1,0,0,1,0],
+    [1,0,1,1,0,1],
+    [0,1,1,1,1,0],
+    [0,1,1,1,1,0],
+    [1,0,1,1,0,1],
+    [0,1,0,0,1,0],
+  ],
+};
+const E_TYPES  = ['eA','eB','eC','eD'];
+const E_COLORS = ['#60A5FA','#34D399','#FACC15','#C084FC'];
+const E_HP     = [3, 2, 2, 1];
+
+// ═══════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+const stage  = document.getElementById('stage');
+let W = 0, H = 0, DPR = 1;
+const P = 4; // CSS px per sprite pixel
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  const r = stage.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width  = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+// ═══════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════
+let _ac = null;
+const ac = () => _ac || (_ac = new (window.AudioContext||window.webkitAudioContext)());
+function beep(f, d, type='square', v=0.06) {
+  try {
+    const c=ac(), o=c.createOscillator(), g=c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.type=type; o.frequency.value=f;
+    g.gain.setValueAtTime(v, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+d);
+    o.start(); o.stop(c.currentTime+d);
+  } catch(_){}
+}
+const sfx = {
+  shoot:   ()=>beep(880,.06,'square',.04),
+  hit:     ()=>beep(300,.07,'sawtooth',.07),
+  explode: ()=>beep(110,.18,'sawtooth',.1),
+  die:     ()=>{beep(120,.2,'sawtooth',.14);setTimeout(()=>beep(80,.3,'sawtooth',.12),180)},
+  wave:    ()=>{beep(660,.15,'square',.07);setTimeout(()=>beep(880,.2,'square',.07),200)},
+  alert:   ()=>{beep(440,.1,'square',.1);setTimeout(()=>beep(330,.1,'square',.1),160);setTimeout(()=>beep(220,.25,'square',.12),320)},
+};
+
+// ═══════════════════════════════════════════════
+// MARKET DATA  (실시간 + 시뮬레이션 fallback)
+// ═══════════════════════════════════════════════
+const MKT = {
+  price: 1389,
+  ch: 0,           // 1분 변화율 %
+  hist: [],
+  alertFired: false,
+  source: 'demo',  // 'live-day' | 'live-night' | 'demo'
+  session: 'closed',
+  simTimer: 0,
+  pollErrors: 0,
+};
+for (let i=0;i<30;i++) MKT.hist.push(1389+(Math.random()-.5)*8);
+
+// ── KST 세션 판별 (UTC+9) ──
+function getSession() {
+  const kst = new Date(Date.now() + 9*3600000);
+  const day = kst.getUTCDay();  // 0=일,1=월,...,6=토
+  const t   = kst.getUTCHours()*60 + kst.getUTCMinutes();
+  if (day>=1&&day<=5&&t>=540&&t<=945) return 'day';   // 주간 09:00-15:45
+  if (t>=1080&&day>=1&&day<=6)        return 'night'; // 야간 18:00- (월-토)
+  if (t<300&&(day>=2||day===0))       return 'night'; // 야간 -05:00 (화-일)
+  return 'closed';
+}
+
+// ── 클라이언트 1분 변화율 슬라이딩 윈도우 ──
+// Vercel(서버리스)은 상태 없음 → 클라이언트에서 직접 계산
+const _priceWin = [];
+function _pushWin(price) {
+  _priceWin.push({price, ts: Date.now()});
+  const cut = Date.now() - 90000;
+  while (_priceWin.length && _priceWin[0].ts < cut) _priceWin.shift();
+}
+function _calc1m(cur) {
+  if (!_priceWin.length) return 0;
+  const target = Date.now() - 60000;
+  let best = _priceWin[0];
+  for (const p of _priceWin) {
+    if (Math.abs(p.ts - target) < Math.abs(best.ts - target)) best = p;
+  }
+  if (Math.abs(best.ts - target) > 35000) return 0;
+  return (cur - best.price) / best.price * 100;
+}
+
+// ── 백엔드 /api/market 에서 실시간 데이터 수신 ──
+async function fetchMarket() {
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), 6000);
+  try {
+    const r = await fetch('/api/market', {signal:ctrl.signal, cache:'no-store'});
+    clearTimeout(id);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return await r.json();
+  } catch(e) { clearTimeout(id); throw e; }
+}
+
+// ── 데이터 적용 ──
+function applyData(price, ch, source) {
+  MKT.price=price; MKT.ch=ch; MKT.source=source;
+  MKT.hist.push(price);
+  if (MKT.hist.length>30) MKT.hist.shift();
+  refreshMarketUI();
+  applyDifficulty();
+  if (MKT.ch<=-1.5&&!MKT.alertFired&&gstate==='playing') {
+    MKT.alertFired=true; triggerAlert();
+  }
+}
+
+// ── 시뮬레이션 tick (서버 응답 없을 때 fallback) ──
+function simTick() {
+  const shock=(Math.random()-.47)*.55;
+  const rev=-MKT.ch*.28;
+  const ch=Math.max(-2.8,Math.min(1.6,MKT.ch+shock+rev));
+  applyData(MKT.price*(1+ch/100), ch, 'demo');
+}
+
+// ── 폴링 ──
+async function pollMarket() {
+  try {
+    const d = await fetchMarket();
+    MKT.session = d.session;
+
+    if (d.source === 'day' || d.source === 'night') {
+      _pushWin(d.price);
+      // 서버가 ch1m 계산 (server.js) 또는 클라이언트 계산 (Vercel) 모두 지원
+      const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
+      applyData(d.price, Math.max(-3, Math.min(2, ch1m)),
+                d.source === 'day' ? 'live-day' : 'live-night');
+    } else {
+      if (d.price && d.price !== MKT.price) MKT.price = d.price;
+      MKT.source = d.source === 'closed' ? 'closed' : 'demo';
+      refreshMarketUI();
+    }
+  } catch(e) {
+    console.warn('[pollMarket]', e.message);
+    if (MKT.source !== 'live-day' && MKT.source !== 'live-night') simTick();
+  }
+}
+
+let _poll=null;
+function startPolling() {
+  pollMarket();
+  clearInterval(_poll);
+  // 서버가 pollingInterval을 내려주면 그 값 사용, 없으면 10초
+  _poll = setInterval(pollMarket, 10000);
+}
+
+function bulletLevel() {
+  if (MKT.ch >= 0.3) return 3;
+  if (MKT.ch >= 0)   return 2;
+  return 1;
+}
+function warnLevel() {
+  if (MKT.ch <= -1.5) return 5;
+  if (MKT.ch <= -.7)  return 4;
+  if (MKT.ch <= -.3)  return 3;
+  if (MKT.ch <   0)   return 2;
+  return 1;
+}
+
+// ═══════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════
+let gstate = 'start'; // start | playing | alert | gameover
+let player, enemies, pBullets, eBullets, particles;
+let lives, score, wave, diffMult;
+let autoFireT = 0;
+let shakeT = 0;
+let bannerT = 0, bannerTxt = '';
+let eDir = 1, eMoveT = 0, eMoveI = 800, eDescend = false;
+let slowDescentT = 0;
+let lastTS = 0;
+
+// ═══════════════════════════════════════════════
+// INIT / RESET
+// ═══════════════════════════════════════════════
+function initGame() {
+  const pw = SPR.player[0].length * P;
+  const ph = SPR.player.length    * P;
+  player = { x: W/2, y: H-56, w: pw, h: ph, inv: 0 };
+  enemies   = buildGrid();
+  pBullets  = [];
+  eBullets  = [];
+  particles = [];
+  lives = 3; score = 0; wave = 1; diffMult = 1;
+  autoFireT = 0; shakeT = 0; bannerT = 0;
+  eDir = 1; eMoveT = 0; eMoveI = 800; eDescend = false; slowDescentT = 0;
+  MKT.alertFired = false;
+  MKT.ch = 0; MKT.simTimer = 0; MKT.pollErrors = 0;
+  startPolling();
+}
+
+const COLS = 7, ROWS = 4, GAP_X = 44, GAP_Y = 40;
+
+function buildGrid() {
+  const list = [];
+  const sw = 6*P, sh = 6*P;
+  const totalW = (COLS-1)*GAP_X + sw;
+  const ox = (W - totalW)/2 + sw/2;
+  const oy = 52;
+  for (let r=0; r<ROWS; r++) {
+    for (let c=0; c<COLS; c++) {
+      list.push({
+        x: ox + c*GAP_X,
+        y: oy + r*GAP_Y,
+        w: sw, h: sh,
+        type:  E_TYPES[r],
+        color: E_COLORS[r],
+        hp:    E_HP[r],
+        alive: true,
+        sht: Math.random()*2500,
+      });
+    }
+  }
+  return list;
+}
+
+function applyDifficulty() {
+  const ch = MKT.ch;
+  if      (ch <= -.7)  { diffMult = 2.0 + Math.abs(ch)*.25; eMoveI = 380; }
+  else if (ch <= -.3)  { diffMult = 1.5; eMoveI = 580; }
+  else if (ch >=  .3)  { diffMult = 0.8; eMoveI = 980; }
+  else                 { diffMult = 1.0; eMoveI = 780; }
+  eMoveI = Math.max(140, eMoveI - (wave-1)*45);
+}
+
+// ═══════════════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════════════
+let drag = null;
+
+stage.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  if (gstate!=='playing') return;
+  const t = e.touches[0];
+  drag = { startX: t.clientX, playerX: player.x };
+},{passive:false});
+stage.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if (gstate!=='playing'||!drag) return;
+  const dx = e.touches[0].clientX - drag.startX;
+  player.x = clamp(drag.playerX + dx, player.w/2, W - player.w/2);
+},{passive:false});
+stage.addEventListener('touchend', ()=>{ drag=null; },{passive:false});
+
+let mDrag = null;
+stage.addEventListener('mousedown', e=>{
+  if (gstate!=='playing') return;
+  mDrag = { startX: e.clientX, playerX: player.x };
+});
+window.addEventListener('mousemove', e=>{
+  if (!mDrag) return;
+  const dx = e.clientX - mDrag.startX;
+  player.x = clamp(mDrag.playerX + dx, player.w/2, W - player.w/2);
+});
+window.addEventListener('mouseup', ()=>{ mDrag=null; });
+
+// ═══════════════════════════════════════════════
+// UPDATE
+// ═══════════════════════════════════════════════
+function update(dt) {
+  if (gstate !== 'playing') return;
+
+  shakeT = Math.max(0, shakeT - dt);
+  bannerT = Math.max(0, bannerT - dt);
+
+  // Auto fire
+  const fi = bulletLevel()===3 ? 240 : bulletLevel()===2 ? 320 : 420;
+  autoFireT += dt;
+  if (autoFireT >= fi) { autoFireT = 0; firePlayer(); }
+
+  // 시뮬레이션 tick — 라이브 데이터 없을 때만 실행
+  if (MKT.source === 'demo') {
+    MKT.simTimer += dt;
+    if (MKT.simTimer >= 14000) { MKT.simTimer = 0; simTick(); }
+  }
+
+  // Player bullets
+  for (let i=pBullets.length-1;i>=0;i--) {
+    pBullets[i].y -= 7;
+    if (pBullets[i].y < -12) pBullets.splice(i,1);
+  }
+
+  // Enemy movement
+  eMoveT += dt;
+  if (eMoveT >= eMoveI) { eMoveT=0; moveEnemies(); }
+
+  // Slow descent (pressure)
+  slowDescentT += dt;
+  if (slowDescentT >= 4000) {
+    slowDescentT = 0;
+    for (const e of enemies) e.y += 6;
+  }
+
+  // Enemy shooting
+  const alive = enemies.filter(e=>e.alive);
+  const baseI = MKT.ch <= -.7 ? 1100 : MKT.ch <= -.3 ? 1700 : 2400;
+  for (const e of alive) {
+    e.sht += dt;
+    if (e.sht >= baseI / diffMult) {
+      e.sht = Math.random() * (baseI/diffMult) * .4;
+      fireEnemy(e);
+    }
+  }
+
+  // Enemy bullets
+  for (let i=eBullets.length-1;i>=0;i--) {
+    const b=eBullets[i];
+    b.x+=b.vx; b.y+=b.vy;
+    if (b.y>H+12||b.x<-12||b.x>W+12) eBullets.splice(i,1);
+  }
+
+  // Collision: player bullets vs enemies
+  for (let bi=pBullets.length-1;bi>=0;bi--) {
+    const b=pBullets[bi];
+    let hit=false;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (overlap(b.x-2,b.y-6,4,12, e.x-e.w/2,e.y-e.h/2,e.w,e.h)) {
+        e.hp--; sfx.hit();
+        burst(b.x,b.y,e.color,5);
+        if (e.hp<=0) { e.alive=false; score+=100*wave*(MKT.ch>=.3?2:1); sfx.explode(); burst(e.x,e.y,e.color,14); }
+        hit=true; break;
+      }
+    }
+    if (hit) pBullets.splice(bi,1);
+  }
+
+  // Collision: enemy bullets vs player
+  if (player.inv<=0) {
+    for (let i=eBullets.length-1;i>=0;i--) {
+      const b=eBullets[i];
+      if (overlap(b.x-2,b.y-5,4,10, player.x-player.w/2,player.y-player.h/2,player.w,player.h)) {
+        eBullets.splice(i,1); hitPlayer(); break;
+      }
+    }
+  } else {
+    player.inv = Math.max(0, player.inv-dt);
+  }
+
+  // Enemy reaches bottom
+  for (const e of alive) {
+    if (e.y+e.h/2 >= H-50) { doGameOver(); return; }
+  }
+
+  // Particles
+  for (let i=particles.length-1;i>=0;i--) {
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=.18; p.life-=.025;
+    if (p.life<=0) particles.splice(i,1);
+  }
+
+  // Panic effects
+  if (MKT.ch<=-.7 && Math.random()<.025) {
+    shakeT=180;
+    if (Math.random()<.35) { bannerTxt='! MARKET ALERT !'; bannerT=500; }
+  }
+
+  // All dead → next wave
+  if (alive.length===0) nextWave();
+
+  refreshStatusUI();
+}
+
+function moveEnemies() {
+  const alive = enemies.filter(e=>e.alive);
+  if (!alive.length) return;
+  if (eDescend) {
+    enemies.forEach(e=>e.y+=18);
+    eDescend=false;
+    return;
+  }
+  const minX = Math.min(...alive.map(e=>e.x-e.w/2));
+  const maxX = Math.max(...alive.map(e=>e.x+e.w/2));
+  if (eDir===1 && maxX>=W-8)       { eDir=-1; eDescend=true; }
+  else if (eDir===-1 && minX<=8)   { eDir= 1; eDescend=true; }
+  else enemies.forEach(e=>e.x+=eDir*16);
+}
+
+function firePlayer() {
+  const lv = bulletLevel();
+  sfx.shoot();
+  const y = player.y - player.h/2;
+  if (lv>=3)      { pBullets.push({x:player.x-9,y},{x:player.x,y},{x:player.x+9,y}); }
+  else if (lv>=2) { pBullets.push({x:player.x-5,y},{x:player.x+5,y}); }
+  else            { pBullets.push({x:player.x,y}); }
+}
+
+function fireEnemy(e) {
+  const aimed = MKT.ch<=-.3 && Math.random()<.45;
+  let vx=0, vy=3.5*diffMult;
+  if (aimed && player) {
+    const dx=player.x-e.x, dy=player.y-e.y;
+    const d=Math.sqrt(dx*dx+dy*dy)||1;
+    vx=(dx/d)*3.5*diffMult; vy=(dy/d)*3.5*diffMult;
+  }
+  eBullets.push({x:e.x,y:e.y+e.h/2,vx,vy,aimed});
+}
+
+function hitPlayer() {
+  sfx.die(); burst(player.x,player.y,'#22C55E',18);
+  lives--;
+  if (lives<=0) { doGameOver(); return; }
+  player.x=W/2; player.inv=2200;
+  bannerTxt='! HIT !'; bannerT=700;
+}
+
+function nextWave() {
+  wave++; sfx.wave();
+  enemies=buildGrid(); eBullets=[];
+  applyDifficulty();
+  bannerTxt='WAVE ' + String(wave).padStart(2,'0');
+  bannerT=1200;
+}
+
+function triggerAlert() {
+  sfx.alert(); gstate='alert';
+  document.getElementById('ovAlertChg').textContent = fmtCh(MKT.ch);
+  show('ov-alert');
+}
+function doGameOver() {
+  gstate='gameover';
+  document.getElementById('ovScore').textContent = 'SCORE ' + String(score).padStart(6,'0');
+  const msg = MKT.ch <= -1.5 ? '시장이 급변했습니다\n관심종목을 확인하세요' :
+              lives <= 0      ? '모든 방어선이 무너졌습니다' : '적이 방어선을 돌파했습니다';
+  document.getElementById('ovGoMsg').textContent = msg;
+  show('ov-go');
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  // Screen shake
+  if (shakeT>0) {
+    const m = Math.min(shakeT/60,4);
+    ctx.translate((Math.random()-.5)*m*2,(Math.random()-.5)*m*2);
+  }
+
+  // Background
+  ctx.fillStyle='#050816';
+  ctx.fillRect(0,0,W,H);
+
+  // Panic tint
+  if (MKT.ch <= -.7) {
+    const a = Math.min(.08, Math.abs(MKT.ch)*.04) * (Math.sin(Date.now()/300)*.5+.5);
+    ctx.fillStyle=`rgba(239,68,68,${a})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,.022)';
+  ctx.lineWidth=.5;
+  for (let x=0;x<W;x+=32){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+  for (let y=0;y<H;y+=32){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+
+  if (gstate==='playing'||gstate==='alert') {
+    drawEnemies();
+    drawPlayer();
+    drawBullets();
+    drawParticles();
+    drawHUD();
+  }
+}
+
+function drawSprite(spr, color, cx, cy, px) {
+  const cols=spr[0].length, rows=spr.length;
+  const sx=cx-cols*px/2, sy=cy-rows*px/2;
+  ctx.fillStyle=color;
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++)
+    if (spr[r][c]) ctx.fillRect(sx+c*px, sy+r*px, px-1, px-1);
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    ctx.save();
+    ctx.shadowColor=e.color; ctx.shadowBlur=10;
+    drawSprite(SPR[e.type], e.color, e.x, e.y, P);
+    ctx.restore();
+  }
+}
+
+function drawPlayer() {
+  if (!player) return;
+  if (player.inv>0 && Math.floor(player.inv/100)%2===0) return;
+  ctx.save();
+  if (bulletLevel()>=2) { ctx.shadowColor='#22C55E'; ctx.shadowBlur=14; }
+  drawSprite(SPR.player,'#22C55E',player.x,player.y,P);
+  ctx.restore();
+  // Lives
+  for (let i=0;i<lives;i++) drawSprite(SPR.player,'#22C55E',14+i*16,H-11,2);
+}
+
+function drawBullets() {
+  ctx.save();
+  ctx.shadowColor='#22C55E'; ctx.shadowBlur=7;
+  ctx.fillStyle='#22C55E';
+  for (const b of pBullets) ctx.fillRect(b.x-1.5,b.y-5,3,10);
+  ctx.restore();
+  for (const b of eBullets) {
+    const col=b.aimed?'#FACC15':'#EF4444';
+    ctx.save();
+    ctx.shadowColor=col; ctx.shadowBlur=7;
+    ctx.fillStyle=col;
+    ctx.fillRect(b.x-2,b.y-4,4,9);
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawHUD() {
+  ctx.textBaseline='top';
+  // Score
+  ctx.font='7px "Press Start 2P"';
+  ctx.fillStyle='#FACC15'; ctx.textAlign='center';
+  ctx.fillText(String(score).padStart(6,'0'), W/2, 6);
+  // Wave
+  ctx.fillStyle='#9CA3AF'; ctx.textAlign='left';
+  ctx.fillText('WAVE '+String(wave).padStart(2,'0'), 7, 6);
+  // Diff
+  ctx.textAlign='right';
+  ctx.fillStyle=diffMult>=1.5?'#EF4444':diffMult<=0.9?'#22C55E':'#9CA3AF';
+  ctx.fillText('×'+diffMult.toFixed(1), W-7, 6);
+  // Banner
+  if (bannerT>0) {
+    const alpha=Math.min(1,bannerT/200);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.font='9px "Press Start 2P"';
+    ctx.fillStyle='#EF4444'; ctx.textAlign='center';
+    ctx.shadowColor='#EF4444'; ctx.shadowBlur=20;
+    ctx.fillText(bannerTxt, W/2, H/2-18);
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function burst(x,y,color,n=12){
+  for(let i=0;i<n;i++) particles.push({
+    x,y,color,size:Math.random()*4+2,life:1,
+    vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7-1,
+  });
+}
+function overlap(ax,ay,aw,ah,bx,by,bw,bh){
+  return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+}
+function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
+function fmtCh(ch){ return (ch>=0?'+':'')+ch.toFixed(2)+'%'; }
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+function refreshMarketUI() {
+  const ch=MKT.ch;
+  document.getElementById('mhPrice').textContent=MKT.price.toFixed(2);
+  const ce=document.getElementById('mhChg');
+  ce.textContent=fmtCh(ch);
+  ce.className='mh-chg '+(ch>=.05?'up':ch<=-.05?'dn':'flat');
+  document.getElementById('mhSub').textContent='1m '+fmtCh(ch);
+
+  // 데이터 소스 표시
+  const src = MKT.source;
+  const symEl = document.getElementById('mhSym');
+  if (src==='live-day')   symEl.textContent='KOSPI 200 · Yahoo Finance ↻';
+  else if (src==='live-night') symEl.textContent='KS200F · Stooq ↻';
+  else                    symEl.textContent='KOSPI 200 · DEMO';
+
+  // Badge  (ALERT/DANGER는 소스 무관 우선)
+  const bd=document.getElementById('mhBadge');
+  const bt=document.getElementById('mhBadgeTxt');
+  if      (ch<=-1.5)          { bd.className='mh-badge bd-alert';  bt.textContent='ALERT'; }
+  else if (ch<=-.3)           { bd.className='mh-badge bd-danger'; bt.textContent='DANGER'; }
+  else if (src==='live-day')  { bd.className='mh-badge bd-live';   bt.textContent='주간 LIVE'; }
+  else if (src==='live-night'){ bd.className='mh-badge bd-night';  bt.textContent='야간 LIVE'; }
+  else if (MKT.source==='closed'||MKT.session==='closed') { bd.className='mh-badge bd-closed'; bt.textContent='CLOSED'; }
+  else { bd.className='mh-badge bd-demo'; bt.textContent=(MKT.session==='night'?'야간 ':'')+'DEMO'; }
+
+  drawSparkline();
+}
+
+function drawSparkline() {
+  const h=MKT.hist;
+  if (h.length<2) return;
+  const minP=Math.min(...h), maxP=Math.max(...h), range=maxP-minP||1;
+  const W2=72,H2=30;
+  const pts=h.map((p,i)=>({
+    x:(i/(h.length-1))*W2,
+    y:H2-((p-minP)/range)*(H2-4)-2,
+  }));
+  const dn=h[h.length-1]<h[0];
+  const col=dn?'#EF4444':'#22C55E';
+  let d=`M${pts[0].x} ${pts[0].y}`;
+  for(let i=1;i<pts.length;i++) d+=` L${pts[i].x} ${pts[i].y}`;
+  document.getElementById('sparkline').innerHTML=`
+    <defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="${col}" stop-opacity=".45"/>
+      <stop offset="1" stop-color="${col}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${d}" stroke="${col}" stroke-width="1.5" fill="none"/>
+    <path d="${d} L${pts[pts.length-1].x} ${H2} L${pts[0].x} ${H2} Z" fill="url(#sg)"/>`;
+}
+
+function refreshStatusUI() {
+  const ch=MKT.ch, wl=warnLevel(), bl=bulletLevel();
+  // Market
+  document.getElementById('scMktV').textContent=fmtCh(ch);
+  const mp=Math.min(100,Math.abs(ch)/2.8*100);
+  const mf=document.getElementById('scMktF');
+  mf.style.width=mp+'%';
+  mf.style.background=ch<0?'#EF4444':'#22C55E';
+  const mc=document.getElementById('scMkt');
+  mc.className='sc '+(ch<-.3?'warn':ch>.3?'good':'neutral');
+  // Bullet
+  document.getElementById('scBulV').textContent='LV '+bl;
+  document.getElementById('scBulF').style.width=(bl/3*100)+'%';
+  // Warning
+  document.getElementById('scWrnV').textContent='LV '+wl;
+  const wf=document.getElementById('scWrnF');
+  wf.style.width=(wl/5*100)+'%';
+  wf.style.background=wl>=3?'#EF4444':'#FACC15';
+  document.getElementById('scWrn').className='sc '+(wl>=3?'warn':wl>=2?'neutral':'neutral');
+}
+
+// ═══════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════
+function loop(ts) {
+  const dt = Math.min(ts - lastTS, 50);
+  lastTS = ts;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+// BUTTON WIRING
+// ═══════════════════════════════════════════════
+document.getElementById('btnStart').addEventListener('click', ()=>{
+  hide('ov-start');
+  initGame(); gstate='playing';
+});
+document.getElementById('btnAlert').addEventListener('click', ()=>{
+  hide('ov-alert');
+  doGameOver();
+});
+document.getElementById('btnRetry').addEventListener('click', ()=>{
+  hide('ov-go');
+  initGame(); gstate='playing';
+});
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+startPolling();   // 페이지 로드 시 즉시 실시간 데이터 fetch
+requestAnimationFrame(ts=>{ lastTS=ts; requestAnimationFrame(loop); });
+</script>
+</body>
+</html>
