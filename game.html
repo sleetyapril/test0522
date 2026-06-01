@@ -59,6 +59,23 @@ html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'J
 .btn-g:active{transform:translateY(1px);opacity:.85}
 .btn-r{padding:13px 28px;min-width:160px;min-height:48px;background:linear-gradient(180deg,rgba(239,68,68,.25),rgba(239,68,68,.1));color:#fecaca;font-family:'Press Start 2P',monospace;font-size:8px;border:1px solid rgba(239,68,68,.6);border-radius:8px;cursor:pointer;letter-spacing:.04em;transition:background .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .btn-r:active{background:rgba(239,68,68,.35);opacity:.85}
+.type-row{display:flex;gap:8px}
+.btn-type{flex:1;padding:9px 0;background:rgba(17,24,39,.8);color:#6B7280;font-family:'Press Start 2P',monospace;font-size:6px;border:1px solid rgba(255,255,255,.1);border-radius:7px;cursor:pointer;letter-spacing:.04em;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-type.active{background:rgba(34,197,94,.12);color:#22C55E;border-color:rgba(34,197,94,.45)}
+.btn-type:active{opacity:.8}
+.stock-panel{width:100%;margin-top:4px}
+.stock-input{width:100%;padding:9px 11px;background:rgba(17,24,39,.9);color:#E5E7EB;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid rgba(255,255,255,.15);border-radius:7px;outline:none;-webkit-appearance:none;box-sizing:border-box}
+.stock-input::placeholder{color:#4B5563}
+.stock-input:focus{border-color:rgba(34,197,94,.45)}
+.stock-drop{width:100%;margin-top:3px;background:rgba(11,16,32,.98);border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden}
+.stock-item{padding:8px 11px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.05);-webkit-tap-highlight-color:transparent}
+.stock-item:last-child{border-bottom:none}
+.stock-item:hover,.stock-item:active{background:rgba(34,197,94,.1)}
+.stock-item-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:#E5E7EB}
+.stock-item-meta{font-family:'Press Start 2P',monospace;font-size:5px;color:#6B7280;text-align:right}
+.stock-chosen{margin-top:5px;padding:7px 11px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+.stock-chosen-name{font-family:'JetBrains Mono',monospace;font-size:11px;color:#22C55E}
+.stock-chosen-code{font-family:'Press Start 2P',monospace;font-size:5px;color:#4B5563}
 
 /* ── Status bar ── */
 #sbar{flex:none;display:flex;padding:7px 8px;gap:5px;background:rgba(11,16,32,.95);border-top:1px solid rgba(255,255,255,.08)}
@@ -95,8 +112,22 @@ html,body{width:100%;height:100%;background:#050816;color:#E5E7EB;font-family:'J
     <div class="ov" id="ov-start">
       <div class="ov-title green-title">KOSPI<br>DEFENDER</div>
       <div class="ov-sub">시장이 흔들리면 적들이 공격합니다<br><br>드래그로 이동 · 자동 발사<br>시장 하락 = 적 강화<br>시장 상승 = 탄막 강화</div>
+      <div style="font-family:'Press Start 2P',monospace;font-size:5.5px;color:#6B7280;margin-bottom:6px;letter-spacing:.06em">데이터 선택</div>
+      <div class="type-row">
+        <button class="btn-type active" id="btnTypeFutures">선물<br><span style="font-size:5px;opacity:.7">KOSPI 200 F</span></button>
+        <button class="btn-type" id="btnTypeSpot">현물<br><span style="font-size:5px;opacity:.7">KOSPI 200</span></button>
+        <button class="btn-type" id="btnTypeStock">종목<br><span style="font-size:5px;opacity:.7">개별 주식</span></button>
+      </div>
+      <div class="stock-panel" id="stockPanel" style="display:none">
+        <input class="stock-input" id="stockInput" type="text" placeholder="종목명 또는 코드 (예: 삼성전자)" autocomplete="off" autocorrect="off">
+        <div class="stock-drop" id="stockDrop" style="display:none"></div>
+        <div class="stock-chosen" id="stockChosen" style="display:none">
+          <span class="stock-chosen-name" id="stockChosenName"></span>
+          <span class="stock-chosen-code" id="stockChosenCode"></span>
+        </div>
+      </div>
       <button class="btn-g" id="btnStart">▶ PLAY</button>
-      <div style="font-family:'Press Start 2P',monospace;font-size:5.5px;color:#4B5563;margin-top:4px">DEMO MODE · 시뮬레이션 데이터</div>
+      <div style="font-family:'Press Start 2P',monospace;font-size:5.5px;color:#4B5563;margin-top:4px" id="startNote">선물 · KIS REST</div>
     </div>
 
     <div class="ov hidden" id="ov-alert">
@@ -238,6 +269,9 @@ const MKT = {
   session: 'closed',
   simTimer: 0,
   pollErrors: 0,
+  type: 'futures',   // 'futures' | 'spot' | 'stock'
+  stockCode: '',
+  stockName: '',
 };
 for (let i=0;i<30;i++) MKT.hist.push(1389+(Math.random()-.5)*8);
 
@@ -276,7 +310,9 @@ async function fetchMarket() {
   const ctrl = new AbortController();
   const id = setTimeout(()=>ctrl.abort(), 6000);
   try {
-    const r = await fetch('/api/market', {signal:ctrl.signal, cache:'no-store'});
+    let url = '/api/market?type=' + MKT.type;
+    if (MKT.type === 'stock' && MKT.stockCode) url += '&code=' + MKT.stockCode;
+    const r = await fetch(url, {signal:ctrl.signal, cache:'no-store'});
     clearTimeout(id);
     if (!r.ok) throw new Error('HTTP '+r.status);
     return await r.json();
@@ -309,9 +345,11 @@ async function pollMarket() {
     const d = await fetchMarket();
     MKT.session = d.session;
 
+    // 종목명이 응답에 포함되어 있으면 갱신 (첫 폴링 시 코드만 알고 이름 모를 때)
+    if (d.name && MKT.type === 'stock' && !MKT.stockName) MKT.stockName = d.name;
+
     if (d.source === 'day' || d.source === 'night') {
       _pushWin(d.price);
-      // 서버가 ch1m 계산 (server.js) 또는 클라이언트 계산 (Vercel) 모두 지원
       const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
       applyData(d.price, Math.max(-3, Math.min(2, ch1m)),
                 d.source === 'day' ? 'live-day' : 'live-night');
@@ -762,9 +800,12 @@ function refreshMarketUI() {
   // 데이터 소스 표시
   const src = MKT.source;
   const symEl = document.getElementById('mhSym');
-  if (src==='live-day')   symEl.textContent='KOSPI 200 · Yahoo Finance ↻';
-  else if (src==='live-night') symEl.textContent='KS200F · Stooq ↻';
-  else                    symEl.textContent='KOSPI 200 · DEMO';
+  const typeLabel = MKT.type === 'futures' ? 'KOSPI 200 F'
+                  : MKT.type === 'stock'   ? (MKT.stockName || MKT.stockCode || '종목')
+                  : 'KOSPI 200';
+  if (src==='live-day')        symEl.textContent=typeLabel+' · KIS ↻';
+  else if (src==='live-night') symEl.textContent=typeLabel+' · KIS 야간 ↻';
+  else                         symEl.textContent=typeLabel;
 
   // Badge  (ALERT/DANGER는 소스 무관 우선)
   const bd=document.getElementById('mhBadge');
@@ -836,7 +877,80 @@ function loop(ts) {
 // ═══════════════════════════════════════════════
 // BUTTON WIRING
 // ═══════════════════════════════════════════════
+function setMarketType(type) {
+  MKT.type = type;
+  document.getElementById('btnTypeFutures').classList.toggle('active', type==='futures');
+  document.getElementById('btnTypeSpot').classList.toggle('active', type==='spot');
+  document.getElementById('btnTypeStock').classList.toggle('active', type==='stock');
+  document.getElementById('stockPanel').style.display = type==='stock' ? 'block' : 'none';
+  if (type !== 'stock') {
+    document.getElementById('startNote').textContent =
+      type==='futures' ? '선물 · KIS REST' : '현물 · Naver KPI200';
+  } else {
+    document.getElementById('startNote').textContent =
+      MKT.stockCode ? MKT.stockName + ' (' + MKT.stockCode + ')' : '종목을 검색하여 선택하세요';
+  }
+}
+document.getElementById('btnTypeFutures').addEventListener('click', ()=>setMarketType('futures'));
+document.getElementById('btnTypeSpot').addEventListener('click', ()=>setMarketType('spot'));
+document.getElementById('btnTypeStock').addEventListener('click', ()=>setMarketType('stock'));
+
+// ── 종목 검색 ──
+let _searchTimer = null;
+document.getElementById('stockInput').addEventListener('input', e => {
+  clearTimeout(_searchTimer);
+  const q = e.target.value.trim();
+  if (!q) { document.getElementById('stockDrop').style.display='none'; return; }
+  _searchTimer = setTimeout(() => fetchStockSearch(q), 320);
+});
+// 6자리 숫자 입력 후 Enter → 코드 직접 사용 (검색 API 없이도 동작)
+document.getElementById('stockInput').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim();
+  if (/^\d{6}$/.test(v)) selectStock(v, v);
+});
+
+async function fetchStockSearch(q) {
+  try {
+    const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+    if (!r.ok) return;
+    const d = await r.json();
+    renderStockDrop(d.results || []);
+  } catch(_) {}
+}
+
+function renderStockDrop(results) {
+  const el = document.getElementById('stockDrop');
+  if (!results.length) { el.style.display='none'; return; }
+  el.innerHTML = results.map(s =>
+    `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+       <span class="stock-item-name">${s.name}</span>
+       <span class="stock-item-meta">${s.code}<br>${s.market}</span>
+     </div>`
+  ).join('');
+  el.style.display = 'block';
+  el.querySelectorAll('.stock-item').forEach(el => {
+    el.addEventListener('click', () => selectStock(el.dataset.code, el.dataset.name));
+  });
+}
+
+function selectStock(code, name) {
+  MKT.stockCode = code;
+  MKT.stockName = name;
+  document.getElementById('stockDrop').style.display = 'none';
+  document.getElementById('stockInput').value = '';
+  document.getElementById('stockChosen').style.display = 'flex';
+  document.getElementById('stockChosenName').textContent = name;
+  document.getElementById('stockChosenCode').textContent = code;
+  document.getElementById('startNote').textContent = name + ' (' + code + ')';
+}
+
 document.getElementById('btnStart').addEventListener('click', ()=>{
+  if (MKT.type === 'stock' && !MKT.stockCode) {
+    document.getElementById('startNote').textContent = '종목을 먼저 선택하세요';
+    document.getElementById('stockInput').focus();
+    return;
+  }
   hide('ov-start');
   initGame(); gstate='playing';
 });
