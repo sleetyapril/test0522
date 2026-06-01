@@ -242,26 +242,8 @@ module.exports = async function handler(req, res) {
   const type       = params.get('type') || 'futures';
   const stockCode  = (params.get('code') || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 12);
 
-  // ── 종목 모드 ──
+  // ── 종목 모드: KIS는 NXT(시간외) 미지원 → Naver만 사용 ──
   if (type === 'stock' && stockCode) {
-    if (APP_KEY) {
-      try {
-        const d = await kisStockPrice(APP_KEY, APP_SECRET, stockCode);
-        return res.json({
-          price:    d.price,
-          ch1m:     0,
-          chDay:    d.chDay,
-          session,
-          source:   session === 'closed' ? 'closed' : session,
-          prevClose: d.prevClose,
-          name:     d.name,
-          pollingInterval: 5000,
-          ts: Date.now(),
-        });
-      } catch (e) {
-        console.error('[KIS 종목]', e.message);
-      }
-    }
     try {
       const d = await fetchNaverStock(stockCode);
       return res.json({
