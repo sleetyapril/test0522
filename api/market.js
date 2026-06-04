@@ -130,9 +130,19 @@ async function kisToken(appKey, appSecret) {
     appkey:    appKey,
     appsecret: appSecret,
   });
-  if (r.status !== 200) throw new Error('KIS 토큰 HTTP ' + r.status);
+  if (r.status === 403) {
+    // 분당 1회 발급 제한 — 만료된 토큰이 있으면 계속 사용, 없으면 에러
+    if (_state.tok.token) {
+      console.warn('[KIS] 토큰 rate-limited (1/min), 기존 토큰 재사용');
+      _state.tok.exp = Date.now() + 55_000; // 55초 후 재시도
+      return _state.tok.token;
+    }
+    const body = JSON.parse(r.body);
+    throw new Error('KIS 토큰 rate-limited: ' + (body.error_description || r.body.slice(0, 100)));
+  }
+  if (r.status !== 200) throw new Error('KIS 토큰 HTTP ' + r.status + ': ' + r.body.slice(0, 100));
   const d = JSON.parse(r.body);
-  if (!d.access_token) throw new Error('access_token 없음');
+  if (!d.access_token) throw new Error('access_token 없음: ' + r.body.slice(0, 100));
   _state.tok.token = d.access_token;
   _state.tok.exp   = Date.now() + (d.expires_in - 600) * 1000;
   return _state.tok.token;
@@ -156,16 +166,22 @@ async function kisFutures(appKey, appSecret, session) {
           'tr_id':       trId,
         }
       );
-      if (r.status !== 200) continue;
+      if (r.status !== 200) {
+        console.warn(`[KIS 선물] tr_id=${trId} HTTP ${r.status}: ${r.body.slice(0, 200)}`);
+        continue;
+      }
       const d = JSON.parse(r.body);
-      if (d.rt_cd !== '0') continue;
+      if (d.rt_cd !== '0') {
+        console.warn(`[KIS 선물] tr_id=${trId} rt_cd=${d.rt_cd} msg=${d.msg1}`);
+        continue;
+      }
       const o         = d.output || d.output1 || {};
       const price     = parseFloat(o.futs_prpr || o.stck_prpr);
       const chDay     = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt);
       const prevClose = parseFloat(o.futs_bspr || o.hts_thpr) || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || '0'));
       if (isNaN(price) || price < 100) continue;
       return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose, contractCode: code };
-    } catch (_) {}
+    } catch (e) { console.warn(`[KIS 선물] tr_id=${trId} 예외:`, e.message); }
   }
   throw new Error('KIS 선물 조회 실패 (모든 tr_id)');
 }
