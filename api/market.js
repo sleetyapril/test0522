@@ -274,10 +274,35 @@ module.exports = async function handler(req, res) {
   const type       = params.get('type') || 'futures';
   const stockCode  = (params.get('code') || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 12);
 
-  // ── 종목 모드: KIS는 NXT(시간외) 미지원 → Naver만 사용 ──
+  // ── 종목 모드: 장중(day)에는 KIS 우선, NXT/실패 시 Naver fallback ──
   if (type === 'stock' && stockCode) {
     const hit = getCached('stock:' + stockCode);
     if (hit) return res.json(hit);
+
+    // 1순위: KIS — 장중에만 (NXT 미지원)
+    if (APP_KEY && session === 'day') {
+      try {
+        const d = await kisStockPrice(APP_KEY, APP_SECRET, stockCode);
+        logSubscription('KIS domestic stock quote', stockCode, d.price);
+        const body = {
+          price:    d.price,
+          ch1m:     0,
+          chDay:    d.chDay,
+          session,
+          source:   'kis_stock',
+          prevClose: d.prevClose,
+          name:     d.name,
+          pollingInterval: 3000,
+          ts: Date.now(),
+        };
+        setCached('stock:' + stockCode, body);
+        return res.json(body);
+      } catch (e) {
+        console.warn('[KIS 종목]', e.message);
+      }
+    }
+
+    // 2순위: Naver — 장외/NXT/KIS 실패 시
     try {
       const d = await fetchNaverStock(stockCode);
       logSubscription(d.nxt ? 'Naver NXT stock quote' : 'Naver domestic stock quote', stockCode, d.price);

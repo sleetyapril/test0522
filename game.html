@@ -396,6 +396,7 @@ function applyData(price, ch, source) {
 function normalizeSource(source) {
   if (source === 'day' || source === 'day_futures') return 'live-day-futures';
   if (source === 'night' || source === 'night_futures') return 'live-night-futures';
+  if (source === 'kis_stock') return 'live-stock-kis';
   if (source === 'stock' || source === 'nxt') return 'live-stock';
   if (source === 'spot') return 'live-spot';
   if (source === 'spot_fallback') return 'spot-fallback';
@@ -444,7 +445,7 @@ async function pollMarket() {
       throw new Error('stock mode received non-stock source: ' + d.source);
     }
 
-    if (source === 'live-day-futures' || source === 'live-night-futures' || source === 'spot-fallback' || source === 'live-stock' || source === 'live-spot') {
+    if (source === 'live-day-futures' || source === 'live-night-futures' || source === 'spot-fallback' || source === 'live-stock' || source === 'live-stock-kis' || source === 'live-spot') {
       _pushWin(d.price);
       const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
       applyData(d.price, Math.max(-3, Math.min(2, ch1m)), source);
@@ -901,6 +902,7 @@ function refreshMarketUI() {
   const stockLabel = MKT.stockName || MKT.stockCode || '종목';
   if      (src==='live-day-futures')   symEl.textContent='KOSPI 200 F · KIS DAY ↻';
   else if (src==='live-night-futures') symEl.textContent='KOSPI 200 F · KIS NIGHT ↻';
+  else if (src==='live-stock-kis')     symEl.textContent=stockLabel+' · KIS ↻';
   else if (src==='live-stock')         symEl.textContent=stockLabel+' · NAVER ↻';
   else if (src==='live-spot')          symEl.textContent='KOSPI 200 · NAVER ↻';
   else if (src==='spot-fallback')      symEl.textContent='KOSPI200 · Spot Fallback';
@@ -911,6 +913,7 @@ function refreshMarketUI() {
   const bt=document.getElementById('mhBadgeTxt');
   if      (src==='live-day-futures')   { bd.className='mh-badge bd-live';   bt.textContent='LIVE KIS DAY'; }
   else if (src==='live-night-futures') { bd.className='mh-badge bd-night';  bt.textContent='LIVE KIS NIGHT'; }
+  else if (src==='live-stock-kis')     { bd.className='mh-badge bd-live';   bt.textContent='KIS 종목'; }
   else if (src==='live-stock')         { bd.className='mh-badge bd-live';   bt.textContent='NAVER 종목'; }
   else if (src==='live-spot')          { bd.className='mh-badge bd-live';   bt.textContent='NAVER SPOT'; }
   else if (src==='spot-fallback')      { bd.className='mh-badge bd-nxt';    bt.textContent='SPOT FALLBACK'; }
