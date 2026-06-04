@@ -445,10 +445,10 @@ async function pollMarket() {
     if (source === 'live-day-futures' || source === 'live-night-futures' || source === 'spot-fallback') {
       _pushWin(d.price);
       const ch1m = d.ch1m !== 0 ? d.ch1m : _calc1m(d.price);
-      applyData(d.price, Math.max(-3, Math.min(2, ch1m || d.chDay || 0)), source);
+      applyData(d.price, Math.max(-3, Math.min(2, ch1m)), source);
     } else {
       if (d.price > 0) MKT.price = d.price;
-      if (d.chDay != null) MKT.ch = Math.max(-3, Math.min(2, d.chDay));
+      MKT.ch = 0;
       MKT.source = source;
       refreshMarketUI();
       applyDifficulty();
@@ -1100,7 +1100,7 @@ document.getElementById('btnStart').addEventListener('click', async ()=>{
           MKT.source = normalizeSource(d.source);
           logMarketData(d, MKT.source);
           if (d.name && !MKT.stockName) MKT.stockName = d.name;
-          _prefetchCh = d.chDay ? Math.max(-3, Math.min(2, d.chDay)) : 0;
+          _prefetchCh = 0;
           _prefetchOk = d.source === 'stock' && d.price > 0;
         }
       }
