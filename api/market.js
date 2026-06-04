@@ -104,23 +104,25 @@ function getNearMonthCode() {
   const now  = Date.now();
   const kst  = new Date(now + 9 * 3_600_000);
   const year = kst.getUTCFullYear();
+  const yy   = String(year).slice(-2); // 2026 → '26'
   for (const m of [3, 6, 9, 12]) {
     let d = new Date(Date.UTC(year, m - 1, 1));
     while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate() + 1);
     d.setUTCDate(d.getUTCDate() + 7);
     d.setUTCHours(6, 45, 0, 0);
-    if (now < d.getTime()) return `101W${String(m).padStart(2, '0')}`;
+    if (now < d.getTime()) return `101W${yy}${String(m).padStart(2, '0')}`; // '101W2606'
   }
-  return '101W03';
+  return `101W${yy}03`;
 }
 
 function getKisFuturesSymbol(session) {
-  const month = getNearMonthCode().slice(-2);
+  const code  = getNearMonthCode(); // '101W2606'
+  const month = parseInt(code.slice(-2), 10);
   if (session === 'night') {
-    const code = month === '12' ? 'C' : String(parseInt(month, 10));
-    return `101W${code}000`;
+    const nightCode = month === 12 ? 'C' : String(month);
+    return `101W${nightCode}000`;
   }
-  return `101S${month}`;
+  return code; // '101W2606'
 }
 
 async function kisToken(appKey, appSecret) {
@@ -153,7 +155,7 @@ async function kisFutures(appKey, appSecret, session) {
   const token = await kisToken(appKey, appSecret);
   const code  = getKisFuturesSymbol(session);
   // 세션에 맞는 KIS API만 사용한다. 야간 실패 시 주간 선물로 위장하지 않고 현물 fallback으로 내려간다.
-  const trIds = ['FHMIF10000000'];
+  const trIds = session === 'night' ? ['FHKIF03020100', 'FHMIF10000000'] : ['FHMIF10000000', 'FHKIF03010100'];
 
   for (const trId of trIds) {
     try {
@@ -175,10 +177,12 @@ async function kisFutures(appKey, appSecret, session) {
         console.warn(`[KIS 선물] tr_id=${trId} rt_cd=${d.rt_cd} msg=${d.msg1}`);
         continue;
       }
-      const o         = d.output || d.output1 || {};
-      const price     = parseFloat(o.futs_prpr || o.stck_prpr);
-      const chDay     = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt);
-      const prevClose = parseFloat(o.futs_bspr || o.hts_thpr) || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || '0'));
+      const o  = d.output1 || d.output || {};
+      const o3 = d.output3 || {};
+      const price     = parseFloat(o.futs_prpr || o.stck_prpr || o3.bstp_nmix_prpr);
+      const chDay     = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt || o3.bstp_nmix_prdy_ctrt);
+      const prevClose = parseFloat(o.futs_bspr || o.hts_thpr)
+        || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || o3.bstp_nmix_prdy_vrss || '0'));
       if (isNaN(price) || price < 100) continue;
       return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose, contractCode: code };
     } catch (e) { console.warn(`[KIS 선물] tr_id=${trId} 예외:`, e.message); }

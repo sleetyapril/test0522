@@ -103,24 +103,26 @@ function getNearMonthCode() {
   const now      = Date.now();
   const kst      = new Date(now + 9 * 3_600_000);
   const year     = kst.getUTCFullYear();
+  const yy       = String(year).slice(-2); // 2026 → '26'
   const quarters = [3, 6, 9, 12];
 
   for (const month of quarters) {
     const expiry = getSecondThursday(year, month);
     if (now < expiry.getTime()) {
-      return `101W${String(month).padStart(2, '0')}`;
+      return `101W${yy}${String(month).padStart(2, '0')}`; // e.g. '101W2606'
     }
   }
-  return '101W03';
+  return `101W${yy}03`;
 }
 
 function getKisFuturesSymbol(session) {
-  const month = getNearMonthCode().slice(-2);
+  const code  = getNearMonthCode(); // '101W2606'
+  const month = parseInt(code.slice(-2), 10);
   if (session === 'night') {
-    const code = month === '12' ? 'C' : String(parseInt(month, 10));
-    return `101W${code}000`;
+    const nightCode = month === 12 ? 'C' : String(month);
+    return `101W${nightCode}000`;
   }
-  return `101S${month}`;
+  return code; // '101W2606'
 }
 
 // ── 공유 데이터 캐시 ───────────────────────────
@@ -198,7 +200,6 @@ async function kisFetchFutures() {
 
   const session = getSession();
   const code    = getKisFuturesSymbol(session);
-  // 주간: FHKIF03010100 / 야간: FHKIF03020100
   const trId    = 'FHMIF10000000';
 
   const res = await httpsReq('GET',
@@ -215,12 +216,18 @@ async function kisFetchFutures() {
   const d = JSON.parse(res.body);
   if (d.rt_cd !== '0') throw new Error(`KIS: ${d.msg1} (rt_cd=${d.rt_cd})`);
 
-  const o        = d.output || d.output1 || {};
-  const price    = parseFloat(o.futs_prpr || o.stck_prpr);   // 선물 현재가
-  const chDay    = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt);   // 전일 대비율 %
-  const prevClose = parseFloat(o.futs_bspr || o.hts_thpr) || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || '0'));
+  // output1: 선물 현재가 (비어있을 수 있음), output3: KOSPI200 지수 fallback
+  const o  = d.output1 || d.output || {};
+  const o3 = d.output3 || {};
+  const price   = parseFloat(o.futs_prpr || o.stck_prpr || o3.bstp_nmix_prpr);
+  const chDay   = parseFloat(o.futs_prdy_ctrt || o.prdy_ctrt || o3.bstp_nmix_prdy_ctrt);
+  const prevClose = parseFloat(o.futs_bspr || o.hts_thpr)
+    || (price - parseFloat(o.futs_prdy_vrss || o.prdy_vrss || o3.bstp_nmix_prdy_vrss || '0'));
 
-  if (isNaN(price) || price < 100) throw new Error('유효하지 않은 선물가: ' + o.futs_prpr);
+  if (isNaN(price) || price < 100) {
+    console.error('[KIS 선물 RAW]', JSON.stringify(d).slice(0, 500));
+    throw new Error('유효하지 않은 선물가');
+  }
   return { price, chDay: isNaN(chDay) ? 0 : chDay, prevClose };
 }
 
@@ -274,11 +281,16 @@ async function kisConnect() {
           ws.send(JSON.stringify({ header: { tr_id: 'PINGPONG' } }));
           return;
         }
-        // 구독 결과 확인
-        if (d.body?.rt_cd === '0') {
-          console.log(`[KIS] 구독 성공: ${d.body.msg1}`);
-        } else if (d.body?.rt_cd) {
-          console.warn('[KIS] 구독 응답:', JSON.stringify(d.body));
+        // 구독 결과 확인 (rt_cd 위치가 body 또는 루트)
+        const rt = d.body?.rt_cd ?? d.rt_cd;
+        const msg1 = d.body?.msg1 ?? d.msg1 ?? '';
+        if (rt === '0') {
+          console.log(`[KIS WS] 구독 성공: ${msg1}`);
+        } else if (rt != null) {
+          console.warn('[KIS WS] 구독 실패 rt_cd=' + rt + ' msg=' + msg1);
+          console.warn('[KIS WS] 전체 응답:', JSON.stringify(d).slice(0, 300));
+        } else {
+          console.log('[KIS WS] JSON 메시지:', JSON.stringify(d).slice(0, 200));
         }
       } catch (_) {}
       return;
