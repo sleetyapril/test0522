@@ -441,9 +441,6 @@ async function pollMarket() {
     if (MKT.type === 'stock' && d.source !== 'stock' && d.source !== 'closed') {
       throw new Error('stock mode received non-stock source: ' + d.source);
     }
-    if (MKT.type === 'stock' && d.price < 1000) {
-      throw new Error('stock mode received index-like price: ' + d.price);
-    }
 
     if (source === 'live-day-futures' || source === 'live-night-futures' || source === 'spot-fallback') {
       _pushWin(d.price);
@@ -1104,7 +1101,7 @@ document.getElementById('btnStart').addEventListener('click', async ()=>{
           logMarketData(d, MKT.source);
           if (d.name && !MKT.stockName) MKT.stockName = d.name;
           _prefetchCh = d.chDay ? Math.max(-3, Math.min(2, d.chDay)) : 0;
-          _prefetchOk = d.source === 'stock' && d.price >= 1000;
+          _prefetchOk = d.source === 'stock' && d.price > 0;
         }
       }
     } catch (e) {
