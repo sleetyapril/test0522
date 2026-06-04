@@ -345,22 +345,22 @@ function getSession() {
   return 'closed';
 }
 
-// ── 클라이언트 1분 변화율 슬라이딩 윈도우 ──
+// ── 클라이언트 30초 변화율 슬라이딩 윈도우 ──
 // Vercel(서버리스)은 상태 없음 → 클라이언트에서 직접 계산
 const _priceWin = [];
 function _pushWin(price) {
   _priceWin.push({price, ts: Date.now()});
-  const cut = Date.now() - 90000;
+  const cut = Date.now() - 45000;
   while (_priceWin.length && _priceWin[0].ts < cut) _priceWin.shift();
 }
 function _calc1m(cur) {
   if (!_priceWin.length) return 0;
-  const target = Date.now() - 60000;
+  const target = Date.now() - 30000;
   let best = _priceWin[0];
   for (const p of _priceWin) {
     if (Math.abs(p.ts - target) < Math.abs(best.ts - target)) best = p;
   }
-  if (Math.abs(best.ts - target) > 35000) return 0;
+  if (Math.abs(best.ts - target) > 18000) return 0;
   return (cur - best.price) / best.price * 100;
 }
 
