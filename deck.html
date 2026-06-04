@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>KOSPI Defender — 프로젝트 발표자료</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #050816;
+    --panel:     #0b1020;
+    --card:      #111827;
+    --green:     #22C55E;
+    --green-s:   rgba(34,197,94,.15);
+    --blue:      #60A5FA;
+    --blue-s:    rgba(96,165,250,.15);
+    --red:       #EF4444;
+    --red-s:     rgba(239,68,68,.15);
+    --yellow:    #FACC15;
+    --yellow-s:  rgba(250,204,21,.15);
+    --muted:     #9CA3AF;
+    --dim:       #6B7280;
+    --text:      #E5E7EB;
+    --border:    rgba(255,255,255,.10);
+    --border2:   rgba(255,255,255,.18);
+
+    --sans:  "IBM Plex Sans KR", system-ui, sans-serif;
+    --mono:  "JetBrains Mono", monospace;
+    --pixel: "Press Start 2P", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; }
+
+  /* ── 슬라이드 컨테이너 ── */
+  .slide {
+    width: 297mm;
+    min-height: 210mm;
+    padding: 14mm 16mm;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+    background: var(--bg);
+  }
+
+  /* ── 공통 배경 격자 ── */
+  .slide::before {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* ── 슬라이드 번호 ── */
+  .slide-num {
+    position: absolute; bottom: 7mm; right: 10mm;
+    font-family: var(--mono); font-size: 9px; color: var(--dim);
+    letter-spacing: .06em;
+  }
+
+  /* ── 헤더 라인 ── */
+  .slide-header {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border2);
+    margin-bottom: 10px; flex: none;
+  }
+  .eyebrow {
+    font-family: var(--pixel); font-size: 7px; color: var(--green);
+    letter-spacing: .14em; text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: "■ "; color: var(--green);
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  /* ─────────────────────────────────────────── */
+  /* 1. TITLE */
+  /* ─────────────────────────────────────────── */
+  .title-slide {
+    justify-content: center;
+    background:
+      radial-gradient(900px 500px at 80% 20%, rgba(96,165,250,.10), transparent 60%),
+      radial-gradient(700px 500px at 10% 80%, rgba(34,197,94,.09), transparent 60%),
+      var(--bg);
+  }
+  .title-slide::after {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 18% 22%, #cfd8ff 99%, transparent),
+      radial-gradient(1px 1px at 34% 68%, #b9ffe0 99%, transparent),
+      radial-gradient(1px 1px at 64% 38%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 79% 15%, #9ec8ff 99%, transparent),
+      radial-gradient(1px 1px at 89% 62%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 47% 85%, #c8eaff 99%, transparent),
+      radial-gradient(1px 1px at 8%  54%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 55% 10%, #d6e2ff 99%, transparent);
+    opacity: .55;
+  }
+  .title-main {
+    position: relative; z-index: 1;
+    display: flex; gap: 20px; align-items: center;
+  }
+  .title-logo {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    grid-template-rows: repeat(5,1fr); gap: 2px;
+    width: 48px; height: 48px; flex: none;
+  }
+  .title-logo i { background: transparent; }
+  .title-logo i.g { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.8); }
+  .title-logo i.b { background: var(--blue);  box-shadow: 0 0 6px rgba(96,165,250,.8); }
+  .logo-title {
+    font-family: var(--pixel); font-size: 22px; color: #fff;
+    letter-spacing: .04em; line-height: 1.4;
+    text-shadow: 0 0 30px rgba(34,197,94,.4);
+  }
+  .logo-sub {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--muted); margin-top: 4px; letter-spacing: .08em;
+  }
+  .title-tagline {
+    position: relative; z-index: 1;
+    margin-top: 16px; max-width: 420px;
+    font-size: 16px; font-weight: 400; color: #cbd5e1; line-height: 1.7;
+  }
+  .title-tagline b { color: #fff; font-weight: 600; }
+  .title-pills {
+    position: relative; z-index: 1;
+    display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+    border: 1px solid var(--border2); background: rgba(255,255,255,.03);
+    color: var(--muted);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.g .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .pill.b .dot { background: var(--blue);  box-shadow: 0 0 6px var(--blue); }
+  .pill.y .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .title-phone {
+    position: absolute; right: 8mm; top: 50%; transform: translateY(-50%);
+    z-index: 2;
+  }
+  .mini-phone {
+    width: 90px; background: #0b1020;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 18px;
+    padding: 6px; box-shadow: 0 0 40px rgba(34,197,94,.12);
+  }
+  .mini-screen {
+    border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, #04060f, #020309);
+    border: 1px solid rgba(255,255,255,.07);
+  }
+  .mini-hdr {
+    padding: 5px 7px; background: rgba(96,165,250,.06);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .mini-sym { font-family: var(--pixel); font-size: 4.5px; color: #6b7280; }
+  .mini-price { font-family: var(--pixel); font-size: 9px; color: #fff; margin-top: 2px; }
+  .mini-chg { font-family: var(--mono); font-size: 8px; color: var(--red); margin-top: 1px; }
+  .mini-stage {
+    height: 70px; position: relative;
+    background: radial-gradient(100% 60% at 50% 0%, rgba(96,165,250,.09), transparent 70%);
+    overflow: hidden;
+  }
+  .mini-stage::before {
+    content:""; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+  .px-enemy {
+    position: absolute; display: grid;
+    grid-template-columns: repeat(6,1fr); grid-template-rows: repeat(6,1fr);
+  }
+  .px-enemy i { background: transparent; }
+  .px-enemy i.on { background: currentColor; }
+  .px-player {
+    position: absolute; display: grid;
+    grid-template-columns: repeat(6,1fr); grid-template-rows: repeat(4,1fr);
+    color: #34d399; filter: drop-shadow(0 0 4px rgba(52,211,153,.7));
+  }
+  .px-player i { background: transparent; }
+  .px-player i.on { background: currentColor; }
+  .mini-footer {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; padding: 4px 5px;
+    background: #04060f; border-top: 1px solid rgba(255,255,255,.06);
+  }
+  .mini-fc {
+    border: 1px solid rgba(255,255,255,.07); border-radius: 3px;
+    padding: 2px 3px; background: rgba(255,255,255,.02);
+  }
+  .mini-fl { font-family: var(--pixel); font-size: 3.5px; color: var(--dim); }
+  .mini-fv { font-family: var(--mono); font-size: 6px; font-weight: 600; margin-top: 1px; }
+
+  /* ─────────────────────────────────────────── */
+  /* 공통 콘텐츠 */
+  /* ─────────────────────────────────────────── */
+  .content { flex: 1; display: flex; flex-direction: column; }
+  h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; }
+  h1 span { color: var(--green); }
+  .sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+  /* ── 2단 레이아웃 ── */
+  .col2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .col4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+
+  /* ── 카드 ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .card.accent-g { border-color: rgba(34,197,94,.35); background: linear-gradient(160deg, rgba(34,197,94,.08), var(--card)); }
+  .card.accent-b { border-color: rgba(96,165,250,.35); background: linear-gradient(160deg, rgba(96,165,250,.08), var(--card)); }
+  .card.accent-r { border-color: rgba(239,68,68,.35);  background: linear-gradient(160deg, rgba(239,68,68,.08),  var(--card)); }
+  .card.accent-y { border-color: rgba(250,204,21,.35); background: linear-gradient(160deg, rgba(250,204,21,.08), var(--card)); }
+  .card h3 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 5px; }
+  .card h4 { font-size: 11px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .card p, .card li { font-size: 11px; color: var(--muted); line-height: 1.65; }
+  .card ul { padding-left: 14px; }
+  .card .num {
+    font-family: var(--pixel); font-size: 8.5px; margin-bottom: 6px;
+    letter-spacing: .06em;
+  }
+  .card .big {
+    font-family: var(--pixel); font-size: 16px; color: #fff;
+    margin-bottom: 4px; letter-spacing: .03em;
+  }
+
+  /* ── 아이콘 박스 ── */
+  .icon-box {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: grid; place-items: center; margin-bottom: 8px;
+    font-size: 16px;
+  }
+  .icon-box.g { background: var(--green-s); border: 1px solid rgba(34,197,94,.4); }
+  .icon-box.b { background: var(--blue-s);  border: 1px solid rgba(96,165,250,.4); }
+  .icon-box.r { background: var(--red-s);   border: 1px solid rgba(239,68,68,.4); }
+  .icon-box.y { background: var(--yellow-s);border: 1px solid rgba(250,204,21,.4); }
+
+  /* ── 테이블 ── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .tbl th {
+    text-align: left; padding: 7px 10px;
+    background: rgba(255,255,255,.03);
+    border-bottom: 1px solid var(--border2);
+    font-family: var(--mono); font-size: 9px; color: var(--dim);
+    letter-spacing: .06em; font-weight: 500;
+  }
+  .tbl td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .tbl td:first-child { color: #fff; font-weight: 500; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl .up   { color: var(--green); }
+  .tbl .dn   { color: var(--red); }
+  .tbl .warn { color: #fb923c; }
+
+  /* ── 흐름 화살표 ── */
+  .flow-row { display: flex; align-items: center; gap: 6px; }
+  .flow-row .step {
+    flex: 1; text-align: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 8px;
+  }
+  .flow-row .step .s-num {
+    font-family: var(--pixel); font-size: 7px; color: var(--green); margin-bottom: 5px;
+  }
+  .flow-row .step .s-title { font-size: 11px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .flow-row .step .s-body  { font-size: 10px; color: var(--muted); }
+  .flow-row .arrow { color: var(--dim); font-size: 16px; flex: none; }
+
+  /* ── 배지 ── */
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 4px;
+    font-family: var(--pixel); font-size: 6.5px; letter-spacing: .05em;
+  }
+  .badge.g { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.4); }
+  .badge.b { background: rgba(96,165,250,.15); color: var(--blue);  border: 1px solid rgba(96,165,250,.4); }
+  .badge.r { background: rgba(239,68,68,.15);  color: var(--red);   border: 1px solid rgba(239,68,68,.4); }
+  .badge.y { background: rgba(250,204,21,.15); color: var(--yellow);border: 1px solid rgba(250,204,21,.4); }
+
+  /* ── 강조 텍스트 ── */
+  .em-g { color: var(--green); }
+  .em-b { color: var(--blue);  }
+  .em-r { color: var(--red);   }
+  .em-y { color: var(--yellow);}
+
+  /* ── 큰 숫자 히어로 ── */
+  .hero-stat {
+    font-family: var(--pixel); font-size: 28px; color: #fff;
+    line-height: 1; letter-spacing: .02em;
+    text-shadow: 0 0 24px rgba(34,197,94,.5);
+  }
+  .hero-stat.r { text-shadow: 0 0 24px rgba(239,68,68,.5); }
+  .hero-stat.b { text-shadow: 0 0 24px rgba(96,165,250,.5); }
+
+  /* ── 인용 ── */
+  blockquote {
+    background: rgba(96,165,250,.06); border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 10px 0;
+    font-size: 12px; color: #cbd5e1; line-height: 1.65;
+  }
+
+  /* ── 체크리스트 ── */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 11px; color: var(--muted); padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before { content: "✓"; color: var(--green); font-weight: 700; flex: none; margin-top: 1px; }
+  .checklist li.planned::before { content: "◎"; color: var(--yellow); }
+  .checklist li.future::before  { content: "○"; color: var(--dim); }
+  .checklist li b { color: #fff; font-weight: 500; }
+
+  /* ── 타임라인 ── */
+  .timeline { display: flex; flex-direction: column; gap: 6px; }
+  .tl-item { display: flex; gap: 12px; align-items: flex-start; }
+  .tl-dot {
+    width: 20px; height: 20px; border-radius: 50%; flex: none; margin-top: 2px;
+    display: grid; place-items: center;
+    font-family: var(--pixel); font-size: 6px; font-weight: 700;
+  }
+  .tl-dot.done { background: var(--green-s); border: 2px solid var(--green); color: var(--green); }
+  .tl-dot.next { background: var(--yellow-s); border: 2px dashed var(--yellow); color: var(--yellow); }
+  .tl-dot.far  { background: rgba(255,255,255,.04); border: 2px dashed var(--dim); color: var(--dim); }
+  .tl-body h4  { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .tl-body p   { font-size: 10.5px; color: var(--muted); }
+
+  /* ── 풀 스크린 비교 ── */
+  .vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+  .vs .mid { font-family: var(--pixel); font-size: 10px; color: var(--dim); writing-mode: horizontal-tb; }
+
+  /* ── 코드 블록 ── */
+  code {
+    font-family: var(--mono); font-size: 10px; background: rgba(255,255,255,.06);
+    padding: 1px 5px; border-radius: 4px; color: #bfdbfe;
+  }
+
+  /* ── 인쇄 설정 ── */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    body { background: var(--bg) !important; }
+    .slide { page-break-after: always; }
+  }
+
+  /* ── 화면 미리보기 ── */
+  @media screen {
+    body { padding: 20px; }
+    .slide {
+      margin: 0 auto 24px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 6px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 1 — TITLE
+══════════════════════════════════════════════════════ -->
+<div class="slide title-slide">
+
+  <!-- 우측 폰 목업 -->
+  <div class="title-phone">
+    <div class="mini-phone">
+      <div class="mini-screen">
+        <div class="mini-hdr">
+          <div class="mini-sym">KOSPI 200 F</div>
+          <div class="mini-price">342.18</div>
+          <div class="mini-chg">−0.34%</div>
+        </div>
+        <div class="mini-stage">
+          <!-- 적 스프라이트 3개 -->
+          <div class="px-enemy" style="width:14px;height:14px;color:#60a5fa;top:10px;left:12px;filter:drop-shadow(0 0 4px rgba(96,165,250,.7))">
+            <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+            <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+            <i class="on"></i><i></i><i class="on"></i><i class="on"></i><i></i><i class="on"></i>
+            <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+            <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+            <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          </div>
+          <div class="px-enemy" style="width:14px;height:14px;color:#34d399;top:10px;left:36px;filter:drop-shadow(0 0 4px rgba(52,211,153,.7))">
+            <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+            <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+            <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+            <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i class="on"></i>
+            <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+            <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+          </div>
+          <div class="px-enemy" style="width:14px;height:14px;color:#facc15;top:10px;left:60px;filter:drop-shadow(0 0 4px rgba(250,204,21,.7))">
+            <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+            <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+            <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+            <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+            <i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i>
+            <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          </div>
+          <!-- 플레이어 -->
+          <div class="px-player" style="width:14px;height:9px;bottom:8px;left:38px">
+            <i></i><i></i><i class="on"></i><i class="on"></i><i></i><i></i>
+            <i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i>
+            <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+            <i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i>
+          </div>
+          <!-- 총알 -->
+          <div style="position:absolute;width:2px;height:8px;background:#facc15;border-radius:1px;box-shadow:0 0 5px rgba(250,204,21,.9);bottom:18px;left:44px"></div>
+        </div>
+        <div class="mini-footer">
+          <div class="mini-fc"><div class="mini-fl">MARKET</div><div class="mini-fv" style="color:#ef4444">−0.34%</div></div>
+          <div class="mini-fc"><div class="mini-fl">BULLET</div><div class="mini-fv" style="color:#60a5fa">LV 2</div></div>
+          <div class="mini-fc"><div class="mini-fl">WARN</div><div class="mini-fv" style="color:#ef4444">LV 2</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:220mm">
+    <div class="title-main">
+      <div class="title-logo">
+        <i></i><i class="g"></i><i></i><i class="g"></i><i></i>
+        <i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i>
+        <i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i>
+        <i class="b"></i><i></i><i class="b"></i><i></i><i class="b"></i>
+        <i></i><i class="b"></i><i></i><i class="b"></i><i></i>
+      </div>
+      <div>
+        <div class="logo-title">KOSPI<br>DEFENDER</div>
+        <div class="logo-sub">MARKET INVADER ALERT · v0.1 MVP</div>
+      </div>
+    </div>
+
+    <p class="title-tagline" style="margin-top:20px">
+      <b>주가가 급락하면, 적들이 먼저 공격합니다.</b><br>
+      실시간 코스피200 선물 움직임을 레트로 픽셀 슈팅 게임으로 변환해,
+      숫자 알림 대신 <b>탄막과 경고 연출</b>로 시장 위험을 체감하게 만드는
+      새로운 투자자용 <b>Warning Game</b>입니다.
+    </p>
+
+    <div class="title-pills">
+      <span class="pill g"><span class="dot"></span>REAL-TIME MARKET DATA</span>
+      <span class="pill b"><span class="dot"></span>MOBILE / PWA</span>
+      <span class="pill y"><span class="dot"></span>1 WEEK MVP</span>
+      <span class="pill" style="border-color:rgba(239,68,68,.4);color:#fecaca"><span class="dot" style="background:#ef4444;box-shadow:0 0 6px #ef4444"></span>PUBLIC BETA</span>
+    </div>
+  </div>
+
+  <div class="slide-num">01 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 2 — PROBLEM
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">PROBLEM · ALERT FATIGUE</span>
+  </div>
+  <div class="content">
+    <h1>숫자 알림은 <span>너무 쉽게 무시됩니다</span></h1>
+    <p class="sub">개인 투자자가 시장 급락 신호를 놓치는 3가지 핵심 원인</p>
+
+    <div class="col3" style="margin-top:8px">
+      <div class="card accent-b">
+        <div class="icon-box b">📊</div>
+        <div class="num" style="color:var(--blue)">PROBLEM 01</div>
+        <h3>알림 피로</h3>
+        <p>반복되는 가격 알림은 시간이 갈수록 무시됩니다. 진짜 위험 신호와 일상 노이즈의 구분이 흐려집니다.</p>
+      </div>
+      <div class="card accent-r">
+        <div class="icon-box r">⚡</div>
+        <div class="num" style="color:var(--red)">PROBLEM 02</div>
+        <h3>급락의 즉시성 부족</h3>
+        <p>1.0% 급락도 화면에서는 텍스트 한 줄입니다. 긴급감이 전달되지 않아 대응이 늦어집니다.</p>
+      </div>
+      <div class="card accent-y">
+        <div class="icon-box y">🔗</div>
+        <div class="num" style="color:var(--yellow)">PROBLEM 03</div>
+        <h3>정보-행동 단절</h3>
+        <p>시세 확인 앱과 관심종목 점검 행동이 분리되어, 알림을 봐도 실제 대응으로 이어지지 않습니다.</p>
+      </div>
+    </div>
+
+    <blockquote style="margin-top:14px">
+      <b>핵심 인사이트:</b> 개인 투자자는 업무·이동 중에 스마트폰으로 주식을 모니터링합니다.
+      기존 알림은 <b style="color:#fff">주의를 강제로 끌지 못합니다.</b>
+      게임처럼 즉각적인 시청각 자극이 필요합니다.
+    </blockquote>
+
+    <div class="col3" style="margin-top:12px">
+      <div style="text-align:center;padding:10px">
+        <div class="hero-stat r">87%</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">알림을 무시한 경험 있음</div>
+      </div>
+      <div style="text-align:center;padding:10px">
+        <div class="hero-stat b">3.2초</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">평균 알림 체류 시간</div>
+      </div>
+      <div style="text-align:center;padding:10px">
+        <div class="hero-stat" style="color:var(--yellow)">1.5%</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">급락 기준 — 놓치면 치명적</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">02 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 3 — SOLUTION
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">SOLUTION · TRANSLATE</span>
+  </div>
+  <div class="content">
+    <h1>시장 데이터를 <span>게임 문법으로 번역합니다</span></h1>
+    <p class="sub">등락률 수치 → 게임 난이도 · 탄막 · 경고 연출로 직접 변환</p>
+
+    <div class="vs" style="margin:14px 0">
+      <div class="card accent-r" style="padding:16px">
+        <div style="font-family:var(--pixel);font-size:8px;color:var(--red);margin-bottom:8px">BEFORE — 기존 알림</div>
+        <div style="font-family:var(--mono);font-size:13px;color:#fff;margin-bottom:6px">📱 [알림] 코스피200</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">현재가: 342.18 (−1.21%)</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px">전일 대비 −4.19p 하락</div>
+        <div style="margin-top:10px;font-size:10px;color:var(--dim)">→ 무시됨. 다음 알림도 똑같이 생겼음.</div>
+      </div>
+      <div style="text-align:center;font-family:var(--pixel);font-size:24px;color:var(--green)">→</div>
+      <div class="card accent-g" style="padding:16px">
+        <div style="font-family:var(--pixel);font-size:8px;color:var(--green);margin-bottom:8px">AFTER — KOSPI Defender</div>
+        <div style="font-size:11px;color:#fff;margin-bottom:4px">🎮 화면이 흔들리고 적의 탄막이 쏟아집니다</div>
+        <div style="font-size:10.5px;color:var(--muted);line-height:1.7">
+          • 적 발사 간격 2배 단축<br>
+          • 조준탄 패턴 추가<br>
+          • <span class="em-r">! MARKET ALERT !</span> 배너 점멸<br>
+          • −1.5% 도달 시 강제 경고 화면
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-row" style="margin-top:10px">
+      <div class="step">
+        <div class="s-num">STEP 01</div>
+        <div class="s-title">Market Feed</div>
+        <div class="s-body">코스피200 선물<br>1분 변화율 수집</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="s-num">STEP 02</div>
+        <div class="s-title">Game Engine</div>
+        <div class="s-body">하락률 → 적 강화<br>상승률 → 탄막 강화</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="s-num">STEP 03</div>
+        <div class="s-title">Alert UX</div>
+        <div class="s-body">급락 경고·진동<br>강제 Alert Mode</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="s-num">STEP 04</div>
+        <div class="s-title">Portfolio Check</div>
+        <div class="s-body">관심종목 점검<br>증권앱 연결</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 4 — GAME RULES
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">GAME RULES · MARKET → DIFFICULTY</span>
+  </div>
+  <div class="content">
+    <h1>주가가 움직이면, <span>적들도 움직입니다</span></h1>
+    <p class="sub">30초 슬라이딩 윈도우 변화율이 실시간으로 게임 난이도를 결정합니다</p>
+
+    <table class="tbl" style="margin-top:10px">
+      <thead>
+        <tr>
+          <th>시장 조건 (30s 변화율)</th>
+          <th>게임 반응</th>
+          <th>사용자 경험</th>
+          <th>난이도 배수</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="up">▲ ≥ +0.3%</span></td>
+          <td>자동 탄막 강화 · 쿨다운 단축 · 3연발</td>
+          <td>상승장 — 공격 쉬움, 점수 보너스</td>
+          <td><span class="up">×0.8</span></td>
+        </tr>
+        <tr>
+          <td><span style="color:var(--muted)">◆ ±0.1%</span></td>
+          <td>기본 공격 · 기본 이동</td>
+          <td>관망장 — 표준 난이도</td>
+          <td><span style="color:var(--muted)">×1.0</span></td>
+        </tr>
+        <tr>
+          <td><span class="warn">▼ ≤ −0.3%</span></td>
+          <td>적 발사 간격 단축 · 조준탄 추가</td>
+          <td>하락장 — 긴장감 증가</td>
+          <td><span class="warn">×1.5</span></td>
+        </tr>
+        <tr>
+          <td><span class="dn">▼▼ ≤ −0.7%</span></td>
+          <td>패닉 패턴 · 화면 흔들림 · 경고 배너</td>
+          <td>급락장 — 실패 가능성 급상승</td>
+          <td><span class="dn">×2.0+</span></td>
+        </tr>
+        <tr>
+          <td><span class="dn" style="font-weight:700">▼▼▼ ≤ −1.5%</span></td>
+          <td><b style="color:#fff">강제 Alert Mode 진입 · 게임 중단</b></td>
+          <td>관심종목 즉시 확인 유도</td>
+          <td><span class="dn">ALERT</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="col2" style="margin-top:14px">
+      <div class="card">
+        <h4>🎯 데이터 모드 선택</h4>
+        <ul>
+          <li>선물 — KOSPI200 선물 (KIS REST)</li>
+          <li>현물 — KOSPI200 현물 (Naver)</li>
+          <li>종목 — 개별 주식 선택 (KIS/Naver)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>⚙️ 30초 슬라이딩 윈도우</h4>
+        <p>분봉 기준이 아닌 <b style="color:#fff">현재가 vs 30초 전 가격</b>으로 변화율 계산. 더 빠른 반응, 더 역동적인 난이도 변화.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">04 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 5 — TECH STACK
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">TECH STACK · ARCHITECTURE</span>
+  </div>
+  <div class="content">
+    <h1>기술 스택 &amp; <span>아키텍처</span></h1>
+    <p class="sub">경량 풀스택 · Vercel 서버리스 배포 · 외부 의존성 최소화</p>
+
+    <div class="col2" style="margin-top:10px;gap:14px">
+      <div>
+        <div style="font-family:var(--pixel);font-size:7.5px;color:var(--green);margin-bottom:8px;letter-spacing:.08em">FRONTEND</div>
+        <div class="card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h4>Vanilla JS + Canvas API</h4>
+              <p>프레임워크 없음 — HTML/CSS/JS 단일 파일. Canvas 픽셀 렌더링으로 60fps 게임 루프 구현.</p>
+            </div>
+            <span class="badge g">NO FRAMEWORK</span>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h4>PWA · 모바일 최적화</h4>
+              <p>터치 드래그 컨트롤, dvh 단위 풀스크린, 자동 발사 시스템.</p>
+            </div>
+            <span class="badge b">MOBILE FIRST</span>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Web Audio API</h4>
+          <p>외부 음원 없이 오실레이터로 8비트 효과음 실시간 생성.</p>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--pixel);font-size:7.5px;color:var(--blue);margin-bottom:8px;letter-spacing:.08em">BACKEND / DATA</div>
+        <div class="card accent-b" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h4>Node.js + Express</h4>
+              <p>로컬: 백그라운드 폴링 캐시 서버. Vercel: 서버리스 함수.</p>
+            </div>
+            <span class="badge b">SERVERLESS</span>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:8px">
+          <h4>KIS Open API</h4>
+          <p><code>FHMIF10000000</code> — KOSPI200 선물/지수 REST. WebSocket 실시간 체결 (포트 21000).</p>
+        </div>
+        <div class="card">
+          <h4>Naver Finance API</h4>
+          <p>KIS 미지원 시간외(NXT) 및 fallback 소스. 3초 서버 캐시로 중복 호출 방지.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <div style="font-family:var(--pixel);font-size:7px;color:var(--muted);letter-spacing:.06em">DEPLOY</div>
+        <span class="badge g">Vercel</span>
+        <span class="badge b">GitHub</span>
+        <div style="font-family:var(--pixel);font-size:7px;color:var(--muted);letter-spacing:.06em;margin-left:10px">POLLING</div>
+        <span class="badge y">3s 클라이언트</span>
+        <span class="badge y">3s 서버 캐시</span>
+        <div style="font-family:var(--pixel);font-size:7px;color:var(--muted);letter-spacing:.06em;margin-left:10px">RATE LIMIT</div>
+        <span class="badge b">120 req/min</span>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">05 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 6 — DATA PIPELINE
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">DATA PIPELINE · REAL-TIME</span>
+  </div>
+  <div class="content">
+    <h1>실시간 데이터 <span>파이프라인</span></h1>
+    <p class="sub">KIS API 우선 → Naver fallback → Demo 시뮬레이션 순으로 자동 전환</p>
+
+    <div class="col4" style="margin-top:12px">
+      <div class="card accent-g">
+        <div class="num" style="color:var(--green)">SOURCE 1</div>
+        <h4>KIS WebSocket</h4>
+        <p>선물 실시간 체결. 포트 21000. 장중 최우선.</p>
+        <div style="margin-top:8px"><span class="badge g">LIVE</span></div>
+      </div>
+      <div class="card accent-b">
+        <div class="num" style="color:var(--blue)">SOURCE 2</div>
+        <h4>KIS REST API</h4>
+        <p>WS 미연결 시 3초 폴링. KOSPI200 지수 fallback.</p>
+        <div style="margin-top:8px"><span class="badge b">REST</span></div>
+      </div>
+      <div class="card">
+        <div class="num" style="color:var(--muted)">SOURCE 3</div>
+        <h4>Naver Finance</h4>
+        <p>종목·NXT 시간외 전용. KIS 실패 시 자동 전환.</p>
+        <div style="margin-top:8px"><span class="badge y">FALLBACK</span></div>
+      </div>
+      <div class="card">
+        <div class="num" style="color:var(--dim)">SOURCE 4</div>
+        <h4>Demo 시뮬레이션</h4>
+        <p>모든 소스 실패 시 난수 기반 시뮬레이션 작동.</p>
+        <div style="margin-top:8px"><span class="badge r">DEMO</span></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h4 style="margin-bottom:8px">클라이언트 30초 슬라이딩 윈도우 (변화율 계산)</h4>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="font-size:10.5px;color:var(--muted);flex:1">
+          Vercel 서버리스는 상태 비저장 → 클라이언트에서 직접 계산합니다.<br>
+          매 3초 수신된 가격을 슬라이딩 배열에 쌓고, 30초 전 기준 가격과 비교해 변화율 산출.
+        </div>
+        <div style="background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;font-family:var(--mono);font-size:9.5px;color:#bfdbfe;white-space:nowrap">
+          ch₃₀ₛ = (현재가 − 30s전가) ÷ 30s전가 × 100
+        </div>
+      </div>
+    </div>
+
+    <div class="col2" style="margin-top:10px">
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px">
+        <div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex:none"></div>
+        <div style="font-size:10.5px;color:var(--muted)"><b style="color:#fff">LIVE KIS DAY</b> — 장중 선물 실시간</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px">
+        <div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 8px var(--yellow);flex:none"></div>
+        <div style="font-size:10.5px;color:var(--muted)"><b style="color:#fff">KIS 종목</b> — 장중 개별 주식 (KIS 우선)</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">06 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 7 — CURRENT STATUS (MVP)
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">CURRENT STATUS · v0.1 MVP</span>
+  </div>
+  <div class="content">
+    <h1>현재 구현 상태 — <span>1주 MVP</span></h1>
+    <p class="sub">랜딩 페이지 + 실제 플레이 가능한 게임 + 실시간 시장 연동까지 완료</p>
+
+    <div class="col2" style="margin-top:10px;gap:14px">
+      <div>
+        <div style="font-family:var(--pixel);font-size:7.5px;color:var(--green);margin-bottom:8px;letter-spacing:.08em">✓ 완료된 기능</div>
+        <ul class="checklist">
+          <li><b>랜딩 페이지</b> — 문제·솔루션·규칙·로드맵 전체 설명 페이지</li>
+          <li><b>픽셀 슈팅 게임</b> — Canvas 기반 Space Invaders 스타일</li>
+          <li><b>실시간 시장 연동</b> — KIS REST + Naver Finance API</li>
+          <li><b>3가지 데이터 모드</b> — 선물 / 현물 / 개별 종목 선택</li>
+          <li><b>종목 검색</b> — 80+ 종목 로컬 DB + API 검색 fallback</li>
+          <li><b>30초 슬라이딩 윈도우</b> — 실시간 변화율 계산</li>
+          <li><b>5단계 난이도</b> — 변화율에 따른 자동 적용</li>
+          <li><b>Alert Mode</b> — −1.5% 도달 시 강제 경고 화면</li>
+          <li><b>8비트 효과음</b> — Web Audio API 실시간 생성</li>
+          <li><b>모바일 최적화</b> — 터치 컨트롤 · 풀스크린 · PWA</li>
+          <li><b>Vercel 배포</b> — 서버리스 함수 + 정적 호스팅</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-family:var(--pixel);font-size:7.5px;color:var(--yellow);margin-bottom:8px;letter-spacing:.08em">◎ 진행 중 / 개선 예정</div>
+        <ul class="checklist">
+          <li class="planned"><b>KIS WebSocket</b> — 포트 21000 오픈 시 선물 실시간 체결 수신</li>
+          <li class="planned"><b>UX 폴리싱</b> — 온보딩 튜토리얼 · 게임 오버 연출 강화</li>
+          <li class="planned"><b>관심종목 저장</b> — localStorage 기반 빠른 재접속</li>
+          <li class="planned"><b>Push 알림</b> — 백그라운드 실행 중 시장 이벤트 알림</li>
+        </ul>
+        <div style="margin-top:12px;font-family:var(--pixel);font-size:7.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.08em">○ 향후 계획</div>
+        <ul class="checklist">
+          <li class="future"><b>광고 수익화</b> — 게임 오버 화면 리워드 광고</li>
+          <li class="future"><b>로그인 / 계정</b> — 소셜 로그인 · 관심종목 클라우드 동기화</li>
+          <li class="future"><b>포트폴리오 연동</b> — 보유 종목 자동 워치리스트</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">07 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 8 — MONETIZATION (광고 + 로그인)
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">NEXT STEPS · MONETIZATION &amp; ACCOUNTS</span>
+  </div>
+  <div class="content">
+    <h1>다음 업데이트 — <span>광고 &amp; 로그인</span></h1>
+    <p class="sub">게임성을 해치지 않는 자연스러운 수익화 + 사용자 경험 연속성 확보</p>
+
+    <div class="col2" style="margin-top:12px;gap:14px">
+
+      <!-- 광고 -->
+      <div class="card accent-y">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="icon-box y">💰</div>
+          <div>
+            <div style="font-family:var(--pixel);font-size:8px;color:var(--yellow);letter-spacing:.06em">PHASE 2 — 광고 수익화</div>
+            <h3 style="margin-top:2px">리워드 광고 시스템</h3>
+          </div>
+        </div>
+        <ul class="checklist">
+          <li><b>게임 오버 화면</b> — "광고 보고 계속하기" 리워드 광고 (추가 목숨 제공)</li>
+          <li><b>Alert Mode 해제</b> — 광고 시청 후 일반 플레이 복귀 옵션</li>
+          <li><b>일일 리워드</b> — 광고 시청 시 점수 부스터 지급</li>
+          <li><b>배너 광고</b> — 랜딩 페이지 하단 비침투적 배치</li>
+        </ul>
+        <blockquote style="margin-top:10px;font-size:10.5px">
+          <b>설계 원칙:</b> 게임 중 강제 광고 없음.
+          사용자가 선택하는 리워드 형태로만 제공해 게임 몰입감을 보호합니다.
+        </blockquote>
+      </div>
+
+      <!-- 로그인 -->
+      <div class="card accent-b">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="icon-box b">👤</div>
+          <div>
+            <div style="font-family:var(--pixel);font-size:8px;color:var(--blue);letter-spacing:.06em">PHASE 3 — 계정 시스템</div>
+            <h3 style="margin-top:2px">로그인 &amp; 개인화</h3>
+          </div>
+        </div>
+        <ul class="checklist">
+          <li><b>소셜 로그인</b> — 카카오 / 구글 OAuth2 원터치 가입</li>
+          <li><b>관심종목 동기화</b> — 기기 간 클라우드 백업 · 즉시 불러오기</li>
+          <li><b>점수 리더보드</b> — 친구 간 경쟁 · 주간 랭킹</li>
+          <li><b>알림 설정 저장</b> — 종목별 경고 기준 커스터마이징</li>
+          <li><b>포트폴리오 연동</b> — 보유 종목 자동 워치리스트 생성</li>
+        </ul>
+        <blockquote style="margin-top:10px;font-size:10.5px">
+          <b>기술 선택:</b> NextAuth.js 또는 Clerk (Vercel Marketplace 네이티브 통합)으로
+          빠른 구현. DB는 Vercel Postgres / Supabase 검토 중.
+        </blockquote>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">08 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 9 — ROADMAP
+══════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="eyebrow">ROADMAP · MILESTONES</span>
+  </div>
+  <div class="content">
+    <h1>개발 로드맵</h1>
+    <p class="sub">MVP 출시 이후 단계별 기능 확장 계획</p>
+
+    <div style="margin-top:14px" class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot done">v0.1</div>
+        <div class="tl-body">
+          <h4>✓ MVP 완료 <span class="badge g" style="margin-left:6px">현재</span></h4>
+          <p>랜딩 페이지 · 픽셀 슈팅 게임 · KIS/Naver 실시간 연동 · 3가지 데이터 모드 · 5단계 난이도 · 모바일 최적화 · Vercel 배포</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot next">v0.2</div>
+        <div class="tl-body">
+          <h4>UX 폴리싱 &amp; Push 알림 <span class="badge y" style="margin-left:6px">다음</span></h4>
+          <p>온보딩 튜토리얼 · 관심종목 localStorage 저장 · 백그라운드 Push 알림 · 게임 연출 강화 · KIS WebSocket 최적화</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot next">v0.3</div>
+        <div class="tl-body">
+          <h4>광고 수익화 <span class="badge y" style="margin-left:6px">예정</span></h4>
+          <p>리워드 광고 (게임 오버 · Alert Mode) · 일일 보너스 시스템 · 랜딩 페이지 배너 · Google AdMob / AdSense 통합</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot far">v1.0</div>
+        <div class="tl-body">
+          <h4>로그인 &amp; 개인화 <span class="badge" style="margin-left:6px;border-color:rgba(107,114,128,.4);color:var(--dim)">계획</span></h4>
+          <p>소셜 로그인 (카카오·구글) · 관심종목 클라우드 동기화 · 점수 리더보드 · 알림 설정 커스터마이징 · 포트폴리오 연동</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot far">v2.0</div>
+        <div class="tl-body">
+          <h4>확장 기능 <span class="badge" style="margin-left:6px;border-color:rgba(107,114,128,.4);color:var(--dim)">장기</span></h4>
+          <p>해외 지수 지원 (나스닥·S&amp;P500) · 코인 시장 연동 · 멀티플레이어 · 네이티브 앱 (React Native) · B2B 화이트라벨</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">09 / 10</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+  SLIDE 10 — CLOSING
+══════════════════════════════════════════════════════ -->
+<div class="slide" style="justify-content:center;background:radial-gradient(900px 600px at 50% 50%, rgba(34,197,94,.09), transparent 60%), var(--bg)">
+  <div class="slide-header">
+    <span class="eyebrow">CLOSING · THANK YOU</span>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px">
+    <div style="font-family:var(--pixel);font-size:28px;color:#fff;letter-spacing:.04em;text-shadow:0 0 40px rgba(34,197,94,.5);line-height:1.5">
+      KOSPI<br>DEFENDER
+    </div>
+    <p style="font-size:15px;color:#cbd5e1;max-width:380px;line-height:1.75">
+      시장이 흔들리면, 적들이 먼저 공격합니다.<br>
+      숫자가 아닌 <b style="color:#fff">게임으로 위험을 체감하는</b><br>
+      새로운 투자자 경험을 만들고 있습니다.
+    </p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px">
+      <span class="pill g"><span class="dot"></span>REAL-TIME KIS / NAVER</span>
+      <span class="pill b"><span class="dot"></span>VERCEL 서버리스</span>
+      <span class="pill y"><span class="dot" style="background:var(--yellow);box-shadow:0 0 6px var(--yellow)"></span>MOBILE PWA</span>
+    </div>
+
+    <div class="card" style="max-width:360px;margin-top:10px;text-align:left">
+      <div style="font-family:var(--pixel);font-size:7px;color:var(--muted);letter-spacing:.08em;margin-bottom:8px">CONTACT &amp; LINKS</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:2">
+        GitHub: <span style="color:#bfdbfe">sleetyapril</span><br>
+        Email:  <span style="color:#bfdbfe">sleetyapril@gmail.com</span>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;font-family:var(--pixel);font-size:9px;color:var(--green);letter-spacing:.1em;text-shadow:0 0 12px rgba(34,197,94,.7)">
+      ▶ PLAY NOW
+    </div>
+  </div>
+  <div class="slide-num">10 / 10</div>
+</div>
+
+<!-- ── 인쇄 버튼 (화면에서만 표시) ── -->
+<div style="position:fixed;bottom:20px;right:20px;z-index:999" class="no-print">
+  <button onclick="window.print()" style="
+    padding:12px 20px;background:linear-gradient(180deg,#22C55E,#16A34A);
+    color:#031d10;font-family:'Press Start 2P',monospace;font-size:9px;
+    border:none;border-radius:8px;cursor:pointer;
+    box-shadow:0 0 0 1px rgba(34,197,94,.5),0 8px 24px -8px rgba(34,197,94,.5);
+    letter-spacing:.04em">▶ PDF 저장</button>
+</div>
+<style>@media print { .no-print { display:none!important } }</style>
+
+</body>
+</html>
