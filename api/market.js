@@ -15,9 +15,26 @@ const _state = {
   futures: { price: 0, chDay: 0, prevClose: 0, contractCode: '', ts: 0 },
 };
 
-// IP당 분당 30회 rate limit
+// 단기 응답 캐시 (3초) — 클라이언트 3초 폴링 대응, Naver 중복 호출 방지
+const _cache = new Map(); // key → { data, ts }
+const CACHE_TTL = 3000;
+
+function getCached(key) {
+  const c = _cache.get(key);
+  if (c && Date.now() - c.ts < CACHE_TTL) return c.data;
+  return null;
+}
+function setCached(key, data) {
+  _cache.set(key, { data, ts: Date.now() });
+  if (_cache.size > 200) {
+    const cut = Date.now() - CACHE_TTL * 5;
+    for (const [k, v] of _cache) if (v.ts < cut) _cache.delete(k);
+  }
+}
+
+// IP당 분당 120회 rate limit (3초 폴링 × 최대 2클라이언트 여유)
 const _rl = new Map(); // ip → { count, resetAt }
-const RL_LIMIT  = 30;
+const RL_LIMIT  = 120;
 const RL_WINDOW = 60_000;
 
 function checkRateLimit(ip) {
@@ -259,10 +276,12 @@ module.exports = async function handler(req, res) {
 
   // ── 종목 모드: KIS는 NXT(시간외) 미지원 → Naver만 사용 ──
   if (type === 'stock' && stockCode) {
+    const hit = getCached('stock:' + stockCode);
+    if (hit) return res.json(hit);
     try {
       const d = await fetchNaverStock(stockCode);
       logSubscription(d.nxt ? 'Naver NXT stock quote' : 'Naver domestic stock quote', stockCode, d.price);
-      return res.json({
+      const body = {
         price:    d.price,
         ch1m:     0,
         chDay:    d.chDay,
@@ -272,7 +291,9 @@ module.exports = async function handler(req, res) {
         name:     d.name,
         pollingInterval: d.pollingInterval,
         ts: Date.now(),
-      });
+      };
+      setCached('stock:' + stockCode, body);
+      return res.json(body);
     } catch (e) {
       console.error('[Naver 종목]', e.message);
       return res.status(503).json({ error: e.message, session, source: 'demo', ts: Date.now() });
@@ -321,6 +342,8 @@ module.exports = async function handler(req, res) {
   }
 
   // ── 2순위: 네이버 KPI200 현물 ──
+  const spotHit = getCached('spot');
+  if (spotHit) return res.json(spotHit);
   try {
     const d = await fetchNaver();
     const source = type === 'futures' ? 'spot_fallback' : (d.isOpen ? 'spot' : 'closed');
@@ -329,7 +352,7 @@ module.exports = async function handler(req, res) {
       'KPI200',
       d.price
     );
-    return res.json({
+    const body = {
       price:    d.price,
       ch1m:     0,
       chDay:    d.chDay,
@@ -338,7 +361,9 @@ module.exports = async function handler(req, res) {
       prevClose: d.prevClose,
       pollingInterval: d.pollingInterval,
       ts: Date.now(),
-    });
+    };
+    setCached('spot', body);
+    return res.json(body);
   } catch (e) {
     console.error('[Naver]', e.message);
   }

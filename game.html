@@ -467,7 +467,7 @@ function startPolling() {
   pollMarket();
   clearInterval(_poll);
   // 서버가 pollingInterval을 내려주면 그 값 사용, 없으면 10초
-  _poll = setInterval(pollMarket, 10000);
+  _poll = setInterval(pollMarket, 3000);
 }
 
 function bulletLevel() {
@@ -893,7 +893,7 @@ function refreshMarketUI() {
   const ce=document.getElementById('mhChg');
   ce.textContent=fmtCh(ch);
   ce.className='mh-chg '+(ch>=.05?'up':ch<=-.05?'dn':'flat');
-  document.getElementById('mhSub').textContent='1m '+fmtCh(ch);
+  document.getElementById('mhSub').textContent='30s '+fmtCh(ch);
 
   // 데이터 소스 표시
   const src = MKT.source;
